@@ -1368,7 +1368,9 @@ export const GoogleMapsSafeHavenView: React.FC<Props> = ({
                 href={
                   userCoords
                     ? `https://maps.google.com/?q=${userCoords.lat},${userCoords.lng}`
-                    : `https://maps.google.com/?q=${selectedCenter.latitude},${selectedCenter.longitude}`
+                    : selectedCenter
+                    ? `https://maps.google.com/?q=${selectedCenter.latitude},${selectedCenter.longitude}`
+                    : "https://maps.google.com"
                 }
                 target="_blank"
                 rel="noreferrer"

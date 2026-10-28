@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import {
   UatProfile,
+  IceContact,
   generateDistressEmailUrl,
   generateWhatsAppBeaconUrl,
 } from "../../services/uatProfileService";
@@ -107,13 +108,13 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
     e.preventDefault();
     if (!newContactName.trim() || !newContactPhone.trim()) return;
 
-    const newContact = {
+    const newContact: IceContact = {
       id: "ice_" + Date.now(),
       name: newContactName.trim(),
       relationship: newContactRel,
       phone: newContactPhone.trim(),
       secondaryPhone: newContactSecondaryPhone.trim() || undefined,
-      email: newContactEmail.trim() || undefined,
+      email: newContactEmail.trim() || "",
       instagramHandle: newContactInstagram.trim() || undefined,
       isPrimary: uatProfile.contacts.length === 0,
     };
@@ -153,10 +154,10 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
       ...uatProfile,
       socials: {
         ...uatProfile.socials,
-        alertEmail: socialAlertEmail.trim() || undefined,
-        twitterHandle: socialTwitter.trim() || undefined,
-        instagramHandle: socialInstagram.trim() || undefined,
-        facebookProfile: socialFacebook.trim() || undefined,
+        alertEmail: socialAlertEmail.trim() || "",
+        twitterHandle: socialTwitter.trim() || "",
+        instagramHandle: socialInstagram.trim() || "",
+        facebookProfile: socialFacebook.trim() || "",
       },
     };
     onUpdateProfile(updated);

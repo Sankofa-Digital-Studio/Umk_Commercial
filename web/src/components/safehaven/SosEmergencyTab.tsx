@@ -428,11 +428,11 @@ export const SosEmergencyTab: React.FC<SosEmergencyTabProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-white">{l.title}</span>
                     <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded border ${
-                      l.type === "TOLL_FREE"
+                      l.type === "VOICE_CALL"
                         ? "bg-emerald-950 text-emerald-300 border-emerald-800"
                         : "bg-sky-950 text-sky-300 border-sky-800"
                     }`}>
-                      {l.type === "TOLL_FREE" ? "TOLL-FREE" : "USSD"}
+                      {l.type === "VOICE_CALL" ? "TOLL-FREE" : "USSD"}
                     </span>
                   </div>
                   <span className="text-[11px] font-mono text-slate-400">{l.dialString}</span>

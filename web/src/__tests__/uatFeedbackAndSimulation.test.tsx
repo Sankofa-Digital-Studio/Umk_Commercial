@@ -10,6 +10,7 @@ describe("SafeHavenDashboard UAT Mode & In-App Feedback Suite", () => {
     vi.clearAllMocks();
     if (typeof window !== "undefined" && window.localStorage) {
       window.localStorage.clear();
+      window.localStorage.setItem("umkhuseli_onboarded_v23", "true");
     }
   });
 

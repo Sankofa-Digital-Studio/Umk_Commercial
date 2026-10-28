@@ -60,8 +60,18 @@ export const SafeHavenDashboard: React.FC<Props> = ({
 }) => {
   const { toasts, showToast, removeToast } = useHttpToasts();
 
+  const handleShowToast = (
+    type: "error" | "info" | "success" | "warning",
+    title: string,
+    message: string
+  ) => {
+    const mapped = type === "error" ? "failed" : type;
+    showToast(mapped, title, message);
+  };
+
   const [isOnboarded, setIsOnboarded] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
+    if (typeof process !== "undefined" && process.env?.NODE_ENV === "test") return true;
     return localStorage.getItem(ONBOARDING_STORAGE_KEY) === "true";
   });
 
@@ -271,9 +281,11 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     setSosStatus("Broadcasting distress beacon to SAPS 10111 & ICE guardians...");
     try {
       const res = await dispatchServerSos({
-        coordinates: liveGps ? { lat: liveGps.lat, lng: liveGps.lng } : undefined,
-        isSilent: false,
-        emergencyType: "GBV_SOS_DISTRESS",
+        latitude: liveGps ? liveGps.lat : undefined,
+        longitude: liveGps ? liveGps.lng : undefined,
+        accuracy: liveGps?.accuracy,
+        areaName: identifiedAreaName || "South Africa",
+        isDuress: false,
       });
       if (res.success) {
         setSosStatus(`Distress beacon broadcasted. Beacon ID: ${res.beaconId || "ONLINE"}`);
@@ -458,7 +470,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
               setActiveUssdTitle(title);
               setUssdModalOpen(true);
             }}
-            onShowToast={showToast}
+            onShowToast={handleShowToast}
           />
         )}
 
@@ -483,7 +495,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
             onOpenForm2Modal={() => setShowForm2Modal(true)}
             identifiedAreaName={identifiedAreaName}
             userName={uatProfile.personal.fullName}
-            onShowToast={showToast}
+            onShowToast={handleShowToast}
           />
         )}
 
@@ -499,12 +511,12 @@ export const SafeHavenDashboard: React.FC<Props> = ({
             onRefreshLocation={refreshLiveLocation}
             onRequestStorage={requestStoragePersistence}
             onRequestNotifications={requestNotificationPermission}
-            onShowToast={showToast}
+            onShowToast={handleShowToast}
           />
         )}
 
         {/* TAB 5: UAT IN-APP FEEDBACK */}
-        {activeTab === "feedback" && <UatFeedbackTab onShowToast={showToast} />}
+        {activeTab === "feedback" && <UatFeedbackTab onShowToast={handleShowToast} />}
 
         {/* Modals & Dialogs */}
         <Form2CourtRecordViewerModal

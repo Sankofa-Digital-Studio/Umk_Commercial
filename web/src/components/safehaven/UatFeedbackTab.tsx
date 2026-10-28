@@ -28,21 +28,22 @@ export const UatFeedbackTab: React.FC<UatFeedbackTabProps> = ({ onShowToast }) =
     try {
       const res = await submitUatFeedback({
         testerAlias: feedbackAlias.trim() || "Anonymous Survivor",
-        ratings: {
-          stealthCamouflage: stealthRating,
-          panicReset0ms: panicRating,
-          secretPinUnlock: unlockRating,
-          sosCountdown: sosRating,
-          offlineLoadsheddingQueue: offlineRating,
-          form2LegalPdfQuality: form2Rating,
-        },
+        deviceModel: typeof navigator !== "undefined" ? navigator.userAgent : "PWA Client",
+        osVersion: "Web/PWA",
+        platform: "WEB_PWA",
+        stealthRating,
+        panicSpeedRating: panicRating,
+        unlockEaseRating: unlockRating,
+        sosGraceRating: sosRating,
+        offlineReliabilityRating: offlineRating,
+        form2QualityRating: form2Rating,
         bugSeverity,
         bugDescription: bugDesc.trim() || undefined,
-        qualitativeFeedback: qualitativeNotes.trim() || undefined,
+        qualitativeNotes: qualitativeNotes.trim() || undefined,
       });
 
       if (res.success) {
-        const msg = `Feedback transmitted securely. Submission ID: ${res.submissionId || "UAT-OK"}`;
+        const msg = res.message || "Feedback transmitted securely.";
         setFeedbackSubmitResult(msg);
         if (onShowToast) {
           onShowToast("success", "Feedback Transmitted", "Response telemetry dispatched to edge gateway.");

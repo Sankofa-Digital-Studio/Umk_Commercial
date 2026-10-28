@@ -107,20 +107,22 @@ export const EvidenceVaultTab: React.FC<EvidenceVaultTabProps> = ({
       location: locationDesc.trim() || identifiedAreaName || "South Africa",
       statement: narrative.trim(),
       severity: 4,
-      injuries: injuries.trim() || undefined,
+      injuriesOrImpact: injuries.trim() || undefined,
       witnesses: witnesses.trim() || undefined,
       sapsObNumber: sapsObNumberInput.trim() || undefined,
+      isEncrypted: true,
     };
 
     try {
       const res = await vaultIncident({
-        type: newRec.type,
+        incidentType: newRec.type,
+        severityLevel: 4,
         perpetrator: newRec.perpetrator,
         locationDescription: newRec.location,
         description: newRec.statement,
-        injuries: newRec.injuries,
-        witnesses: newRec.witnesses,
-        sapsObNumber: newRec.sapsObNumber,
+        injuriesOrImpact: newRec.injuriesOrImpact || "",
+        witnesses: newRec.witnesses || "",
+        policeObNumber: newRec.sapsObNumber,
       });
 
       if (res.success) {
@@ -166,18 +168,18 @@ export const EvidenceVaultTab: React.FC<EvidenceVaultTabProps> = ({
     setPdfExportStatus("Generating ECTA Sec 15 Court Affidavit PDF...");
     try {
       const res = await exportOrShareEctaAffidavitPdf({
-        applicantName: userName || "Protected Survivor",
-        courtName: "Randburg Magistrates' Court",
-        incidents: recordedIncidents.map((i) => ({
-          date: i.date,
-          type: i.type,
-          statement: i.statement,
-          perpetrator: i.perpetrator,
-          location: i.location,
-        })),
-        digitalSignature: `UMKHUSELI-SEAL-${Date.now().toString(36).toUpperCase()}`,
+        deponentName: userName || "Protected Survivor",
+        magistrateDistrict: "Randburg Magistrates' Court",
+        incidentType: recordedIncidents[0]?.type || "Domestic Violence Incident",
+        severityLevel: 4,
+        perpetrator: recordedIncidents[0]?.perpetrator || "Unspecified",
+        locationDescription: recordedIncidents[0]?.location || "South Africa",
+        description: recordedIncidents.map((i) => `[${i.date} - ${i.type}] ${i.statement}`).join("\n\n") || "No incidents recorded.",
+        injuriesOrImpact: recordedIncidents[0]?.injuriesOrImpact || "None specified",
+        witnesses: recordedIncidents[0]?.witnesses || "Confidential",
+        sha256Checksum: `UMKHUSELI-SEAL-${Date.now().toString(36).toUpperCase()}`,
       });
-      setPdfExportStatus(`PDF generated successfully (${res.status}).`);
+      setPdfExportStatus(`PDF generated successfully (${res.filename}).`);
       if (onShowToast) {
         onShowToast("success", "Affidavit Ready", "ECTA Sec 15 Court Affidavit PDF exported.");
       }

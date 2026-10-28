@@ -23,9 +23,12 @@ export interface IceContact {
 
 export interface PersonalProfile {
   fullName: string;
-  nationalId: string;
-  address: string;
-  medicalNotes: string;
+  nationalId?: string;
+  saIdNumber?: string;
+  address?: string;
+  medicalNotes?: string;
+  medicalConditions?: string;
+  safeWord?: string;
 }
 
 export interface EmergencySocials {
