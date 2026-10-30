@@ -18,8 +18,10 @@ import { getCachedLiveLocation } from "../services/liveLocationService";
 import {
   readDeviceLocationWithDetails,
   inferSouthAfricanLocationSync,
+  resolveCoordinatesFromAddressOrProfile,
   SouthAfricanLocationDetails
 } from "../services/deviceLocationResolver";
+import { getUatProfile } from "../services/uatProfileService";
 
 interface Props {
   beaconToken?: string;
@@ -111,7 +113,6 @@ export const GuardianTrackerView: React.FC<Props> = ({
       const uatProf = getUatProfile();
       if (uatProf?.personal?.address) {
         profileAreaCoords = resolveCoordinatesFromAddressOrProfile(uatProf.personal.address);
-      console.log("DEBUG_UAT_PROF_ADDR:", uatProf.personal.address, "RESOLVED:", profileAreaCoords);
       }
     } catch {
       /* ignore */
