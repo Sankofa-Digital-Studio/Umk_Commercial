@@ -4,6 +4,7 @@ import {
   RotateCcw,
   Navigation,
   PhoneCall,
+  Info,
 } from "lucide-react";
 import {
   THUTHUZELA_CENTERS,
@@ -12,6 +13,7 @@ import {
 } from "../../data/saSafetyData";
 import { First72HoursGuide } from "../First72HoursGuide";
 import { GoogleMapsSafeHavenView } from "../GoogleMapsSafeHavenView";
+import { TccServiceInfoModal } from "../TccServiceInfoModal";
 
 interface TccCentresTabProps {
   userLocation: { lat: number; lng: number; accuracy?: number } | null;
@@ -28,6 +30,15 @@ export const TccCentresTab: React.FC<TccCentresTabProps> = ({
 }) => {
   const [selectedProvince, setSelectedProvince] = useState<string>("All");
   const [tccSearch, setTccSearch] = useState<string>("");
+  const [serviceModal, setServiceModal] = useState<{
+    isOpen: boolean;
+    initialIndex: number;
+    centreName?: string;
+    contactNumber?: string;
+  }>({
+    isOpen: false,
+    initialIndex: 0,
+  });
 
   const filteredTcc = useMemo(() => {
     let list = sortCentresByDistance(
@@ -50,8 +61,26 @@ export const TccCentresTab: React.FC<TccCentresTabProps> = ({
     return list;
   }, [selectedProvince, tccSearch, userLocation]);
 
+  const handleOpenServiceModal = (index: number, centreName: string, contactNumber: string) => {
+    setServiceModal({
+      isOpen: true,
+      initialIndex: index,
+      centreName,
+      contactNumber,
+    });
+  };
+
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
+      {/* Service Info Swipable Modal */}
+      <TccServiceInfoModal
+        isOpen={serviceModal.isOpen}
+        initialIndex={serviceModal.initialIndex}
+        centreName={serviceModal.centreName}
+        contactNumber={serviceModal.contactNumber}
+        onClose={() => setServiceModal((prev) => ({ ...prev, isOpen: false }))}
+      />
+
       {/* The First 72 Hours Forensic Guide */}
       <First72HoursGuide />
 
@@ -146,17 +175,35 @@ export const TccCentresTab: React.FC<TccCentresTabProps> = ({
                 </div>
               </div>
 
-              {/* Forensic & Clinical Badges */}
+              {/* Forensic & Clinical Badges with interactive touch/click modal */}
               <div className="flex flex-wrap gap-1 text-[10px] text-slate-300">
-                <span className="bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                  Forensic Medical Exam
-                </span>
-                <span className="bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                  HIV PEP Prophylaxis
-                </span>
-                <span className="bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                  Trauma Counseling
-                </span>
+                <button
+                  type="button"
+                  onClick={() => handleOpenServiceModal(0, c.name, c.contactNumber)}
+                  className="bg-slate-950 hover:bg-slate-800 hover:border-amber-500/50 hover:text-amber-300 active:scale-95 px-2 py-1 rounded-lg border border-slate-800 text-slate-300 transition-all flex items-center gap-1 cursor-pointer"
+                  title="Click to view Forensic Medical Exam legal & clinical details"
+                >
+                  <Info className="w-3 h-3 text-amber-400" />
+                  <span>Forensic Medical Exam</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenServiceModal(1, c.name, c.contactNumber)}
+                  className="bg-slate-950 hover:bg-slate-800 hover:border-rose-500/50 hover:text-rose-300 active:scale-95 px-2 py-1 rounded-lg border border-slate-800 text-slate-300 transition-all flex items-center gap-1 cursor-pointer"
+                  title="Click to view HIV PEP Prophylaxis clinical details"
+                >
+                  <Info className="w-3 h-3 text-rose-400" />
+                  <span>HIV PEP Prophylaxis</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenServiceModal(2, c.name, c.contactNumber)}
+                  className="bg-slate-950 hover:bg-slate-800 hover:border-sky-500/50 hover:text-sky-300 active:scale-95 px-2 py-1 rounded-lg border border-slate-800 text-slate-300 transition-all flex items-center gap-1 cursor-pointer"
+                  title="Click to view Trauma Counseling support details"
+                >
+                  <Info className="w-3 h-3 text-sky-400" />
+                  <span>Trauma Counseling</span>
+                </button>
               </div>
 
               <p className="text-xs text-slate-400 flex items-center gap-1.5">
