@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/Sankofa-Digital-Studio/Umk_Commercial/security/advisories/new
+    about: Do not disclose vulnerabilities or sensitive safety information in a public issue.
   - name: Emergency Crisis & Safety Lifelines (South Africa)
-    url: https://github.com/OhhttooeXCIV/Umkhuseli_The_Protector#emergency-contacts--directories
+    url: https://github.com/Sankofa-Digital-Studio/Umk_Commercial/blob/main/SUPPORT.md
     about: If you or someone you know is in immediate danger, please dial 10111 (SAPS) or 0800 428 428 (GBV Command Centre).

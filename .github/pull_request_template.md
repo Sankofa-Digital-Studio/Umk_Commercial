@@ -1,16 +1,33 @@
-## Pull Request Checklist
+## Summary
 
-### Description of Changes
-<!-- Provide a concise description of the motivation and changes made in this PR -->
+<!-- Explain the problem, the chosen change, and the user-visible outcome. -->
 
-### Safety & Threat Model Verification
-- [ ] **Camouflage Invariance**: Verified that no secret Haven UI elements or safe state leak into the Facade launcher.
-- [ ] **Zero-Trace Memory Scrubbing**: Verified that pressing the panic trigger or hardware Back wipes in-memory sensitive state.
-- [ ] **Cryptographic Protection**: Confirmed that any new user data fields are encrypted with AES-256-GCM before persistent storage.
-- [ ] **No Plaintext Logging**: Verified that `Log.d`, `Log.i`, or `println` never emit victim names, coordinates, pins, or notes.
-- [ ] **POPIA Compliance**: Verified that no telemetry, third-party analytics, or tracking SDKs have been introduced.
+## Linked work
 
-### Test Coverage & Build Verification
-- [ ] Android unit tests pass (`./gradlew testDebugUnitTest`)
-- [ ] Web PWA unit tests pass (`npm test` in `/web`)
-- [ ] Code formatting & lint checks pass
+Closes #
+
+## Scope and risk
+
+- Affected surfaces:
+- Safety/privacy impact:
+- Rollback approach:
+
+## Verification
+
+- [ ] Web tests pass (`cd web && npm test`), if applicable
+- [ ] Web production build passes (`cd web && npm run build`), if applicable
+- [ ] Android unit tests pass (`./gradlew testDebugUnitTest`), if applicable
+- [ ] Android debug build passes (`./gradlew assembleDebug`), if applicable
+- [ ] Primary flow and relevant denied-permission, offline, timeout, and failure paths were checked
+- [ ] Documentation was updated for changed behavior, prerequisites, or limitations
+
+## Safety review
+
+- [ ] No protected state leaks into a facade, recent-app preview, notification, log, screenshot, or browser history
+- [ ] No real survivor data, credentials, precise locations, or evidence appear in code, fixtures, screenshots, or logs
+- [ ] Storage, retention, deletion, encryption, and consent boundaries were reviewed
+- [ ] Emergency, medical, legal, and compliance language does not promise unverified outcomes
+
+## Evidence
+
+<!-- Add redacted screenshots, test output, recordings, or links to approved evidence. -->

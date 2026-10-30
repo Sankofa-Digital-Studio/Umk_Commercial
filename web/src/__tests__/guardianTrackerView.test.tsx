@@ -197,7 +197,7 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
     render(<GuardianTrackerView beaconToken="welkom-test-token" />);
     expect(screen.getByText(/Flamingo Park, Welkom/i)).toBeInTheDocument();
     expect(screen.getByText("Bongani Hospital TCC")).toBeInTheDocument();
-    expect(screen.getByText(/Free State/i)).toBeInTheDocument();
+    expect(screen.getByTestId("location-region")).toHaveTextContent("Free State Goldfields");
     expect(screen.getByText(/3\.4 km away/i)).toBeInTheDocument();
     expect(screen.getByTestId("location-city")).toHaveTextContent("Welkom");
 

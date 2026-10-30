@@ -19,6 +19,26 @@ debug.keystore
 __pycache__/
 *.pyc
 
+# JavaScript and test caches
+node_modules/
+**/node_modules/
+.vite/
+**/.vite/
+.vitest-cache/
+**/.vitest-cache/
+dist/
+**/dist/
+coverage/
+**/coverage/
+
+# Logs and crash dumps
+*.log
+hs_err_pid*
+
+# Local tooling
+.vscode/
+.fleet/
+
 
 .vercel
 .env*
