@@ -411,7 +411,7 @@ export const SA_SETTLEMENTS_DATABASE: SouthAfricanGeoSettlement[] = [
     district: "Lejweleputswa District Municipality",
     region: "Free State Goldfields",
     province: "Free State",
-    suburb: "Flamingo Park / Welkom Central",
+    suburb: "Flamingo Park",
     lat: -27.9471,
     lng: 26.7237,
   },
