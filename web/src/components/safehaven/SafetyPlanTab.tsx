@@ -19,6 +19,12 @@ import {
   ChevronDown,
 } from "lucide-react";
 import {
+  NotificationChannelControl,
+  SafetyNotificationLevel,
+  getNotificationControls,
+  saveNotificationControls,
+} from "../../services/notificationSafetyManager";
+import {
   UatProfile,
   IceContact,
   generateDistressEmailUrl,
@@ -64,6 +70,18 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
   const [isSocialsExpanded, setIsSocialsExpanded] = useState<boolean>(false);
   const [showAddContactForm, setShowAddContactForm] = useState<boolean>(false);
   const [profileSaveMessage, setProfileSaveMessage] = useState<string | null>(null);
+
+  // Notification Safety Preferences State
+  const [notifControls, setNotifControls] = useState<NotificationChannelControl>(getNotificationControls);
+
+  const handleUpdateNotifControls = (updated: Partial<NotificationChannelControl>) => {
+    const next = { ...notifControls, ...updated };
+    setNotifControls(next);
+    saveNotificationControls(next);
+    if (onShowToast) {
+      onShowToast("success", "Safety Notification Mode", "Notification protocol updated for your security profile.");
+    }
+  };
 
   // Profile form state
   const [fullName, setFullName] = useState(uatProfile.personal.fullName);

@@ -26,6 +26,21 @@ interface Props {
   onExit?: () => void;
 }
 
+
+export function formatTriggeredTime(dispatchedAtIso: string): string {
+  try {
+    const diffMs = Date.now() - new Date(dispatchedAtIso).getTime();
+    const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+    if (diffMinutes === 0) return "Just now (< 1 min ago)";
+    if (diffMinutes === 1) return "1 minute ago";
+    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  } catch {
+    return "Recent";
+  }
+}
+
 export const GuardianTrackerView: React.FC<Props> = ({
   beaconToken = "demo-ephemeral-beacon-72h",
   onExit

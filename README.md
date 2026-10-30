@@ -2,8 +2,8 @@
 
 <div align="center">
 
-[![FNB AOTY 2026 Release](https://img.shields.io/badge/FNB__AOTY__2026-v2.5.0%20(Official%20MVP)-007A78?style=for-the-badge&logo=fnb)](RELEASE_LOG.md#-release-v250--fnb-aoty-2026-final-mvp-public-baseline)
-[![Latest Commercial Release](https://img.shields.io/badge/Latest%20Release-v2.6.0%20(Private%20Repo)-darkred?style=for-the-badge)](RELEASE_LOG.md#-release-v260-latest--sankofa-digital-continuation-private-repository)
+[![FNB AOTY 2026 Release](https://img.shields.io/badge/FNB__AOTY__2026-v2.6.1%20(Official%20MVP)-007A78?style=for-the-badge&logo=fnb)](RELEASE_LOG.md#-release-v250--fnb-aoty-2026-final-mvp-public-baseline)
+[![Latest Commercial Release](https://img.shields.io/badge/Latest%20Release-v2.6.1%20(Private%20Repo)-darkred?style=for-the-badge)](RELEASE_LOG.md#-release-v260-latest--sankofa-digital-continuation-private-repository)
 [![Repository Access](https://img.shields.io/badge/Access-Public%20(14--Day%20Evaluation%20Window)-orange?style=for-the-badge)](RELEASE_LOG.md#-terms-of-evaluation--intellectual-property-declaration)
 [![IP & Ownership](https://img.shields.io/badge/Ownership-Sankofa%20Digital%20(All%20Rights%20Reserved)-purple?style=for-the-badge)](#-intellectual-property--governance-declaration)
 
@@ -23,7 +23,7 @@
 [The 5 Core Features](#-the-5-definitive-mvp-features-fnbaoty-baseline) •
 [Dual-Persona Stealth](#-dual-persona-stealth-architecture) •
 [Master Docs Suite](#-final-mvp-documentation-suite-public) •
-[Commercial Continuation (v2.6.0)](#-commercial-continuation-release-v260-latest) •
+[Commercial Continuation (v2.6.1)](#-commercial-continuation-release-v260-latest) •
 [Quick Start](#-quick-start--evaluation-guide) •
 [Demo Credentials](#-demo-credentials--evaluation-triggers) •
 [Judging Checklist](#-fnb-aoty-2026-evaluation-checklist) •
@@ -36,8 +36,8 @@
 ## 🚨 CRITICAL NOTICE: FNB AOTY 2026 RELEASE & PROPRIETARY DEMARCATION
 
 > [!IMPORTANT]
-> ### 1. Official Release for FNB App of the Year 2026: **`v2.5.0`**
-> - **`v2.5.0` (Git Tag: `v2.5.0` / `FNB_AOTY_2026_MVP`) is the official, final, and complete Hackathon MVP release submitted for First National Bank App of the Year 2026 (FNB AOTY 2026).**
+> ### 1. Official Release for FNB App of the Year 2026: **`v2.6.1`**
+> - **`v2.6.1` (Git Tag: `v2.6.1` / `FNB_AOTY_2026_MVP`) is the official, final, and complete Hackathon MVP release submitted for First National Bank App of the Year 2026 (FNB AOTY 2026).**
 > - It delivers all 5 definitive core MVP features, the comprehensive documentation suite in [`public/`](./public/), and 100% green automated test suites (193 Vitest web tests, Android JVM/Robolectric tests).
 >
 > ### 2. 14-Day Limited Public Evaluation Window
@@ -49,26 +49,26 @@
 > - **Outside the construct and evaluation of the FNB AOTY 2026 Hackathon, Full Ownership, Intellectual Property, Patents, Proprietary Source Code, and Commercial Rights are strictly and unconditionally reserved and retained by Sankofa Digital.**
 > - Any unauthorized reproduction, commercial exploitation, redistribution, sublicensing, or copying of this codebase outside the formal judging process of FNB AOTY 2026 is strictly prohibited.
 >
-> ### 4. Release `v2.6.0` (Latest) — Sankofa Digital Continuation on Private Repository
-> - **Version `v2.6.0` (Latest)** is **Sankofa Digital's ongoing commercial continuation and enterprise scaling of their solution**.
-> - In accordance with commercial IP protection and telecom carrier agreements, **`v2.6.0` (Latest) is hosted and developed on a separate, private proprietary repository**.
-> - The private repository maintains a new release tag (`v2.6.0`) and contains upstream lineage references pointing back to this public repository, which **permanently ends at `v2.5.0`**.
+> ### 4. Release `v2.6.1` (Latest) — Sankofa Digital Continuation on Private Repository
+> - **Version `v2.6.1` (Latest)** is **Sankofa Digital's ongoing commercial continuation and enterprise scaling of their solution**.
+> - In accordance with commercial IP protection and telecom carrier agreements, **`v2.6.1` (Latest) is hosted and developed on a separate, private proprietary repository**.
+> - The private repository maintains a new release tag (`v2.6.1`) and contains upstream lineage references pointing back to this public repository, which **permanently ends at `v2.6.1`**.
 > - For full governance terms and private repository setup instructions, refer to [`RELEASE_LOG.md`](./RELEASE_LOG.md).
 
 ---
 
 ## 🏷️ Release & Repository Demarcation Matrix
 
-| Attribute | Public Hackathon Release (`v2.5.0`) | Commercial Continuation (`v2.6.0` Latest) |
+| Attribute | Public Hackathon Release (`v2.6.1`) | Commercial Continuation (`v2.6.1` Latest) |
 |---|---|---|
-| **Version Tag** | **`v2.5.0`** / **`FNB_AOTY_2026_MVP`** | **`v2.6.0`** *(Latest)* |
+| **Version Tag** | **`v2.6.1`** / **`FNB_AOTY_2026_MVP`** | **`v2.6.1`** *(Latest)* |
 | **Repository** | **Public Repo** (`OhhttooeXCIV/Umkhuseli_The_Protector`) | **Private Repo** (`SankofaDigital/Umkhuseli-Core`) |
 | **Intended Audience** | **FNB AOTY 2026 Adjudicators, Mentors & Stakeholders** | **Sankofa Digital, Enterprise Partners & SA Telcos** |
 | **Access Duration** | **14 Calendar Days strictly** *(Evaluation window)* | **Permanent / Closed Proprietary Lifecycle** |
 | **Allowed Scope** | **Hackathon adjudication, inspection, and verification ONLY** | **Commercial deployment, fleet integration & licensing** |
 | **Core Inclusions** | 5 Definitive MVP features, 0ms wipe, ECTA Sec 15 Vault, STS Duress 9999, Form 2 Court Pack, 9-Province TCC | Enterprise C2 Dispatcher, Direct Carrier Reverse-Billed USSD, Audio Sentry AI, Bolt Sentinel, OPRF PSI |
 | **Ownership & IP** | **Strictly reserved & retained by Sankofa Digital** | **100% Owned & Retained by Sankofa Digital** |
-| **Upstream Lineage** | Terminal open evaluation baseline | Forks & references public repo at terminal tag `v2.5.0` |
+| **Upstream Lineage** | Terminal open evaluation baseline | Forks & references public repo at terminal tag `v2.6.1` |
 
 ---
 
@@ -85,11 +85,11 @@ It delivers a zero-trace, dual-persona Android & Web platform combining everyday
 
 ## ✨ The 5 Definitive MVP Features (FNBAOTY Baseline)
 
-Following guidance from **First National Bank App of the Year (FNBAOTY)** mentors, release `v2.5.0` is focused on 5 robust, failure-proof features engineered specifically for South African socio-technical conditions:
+Following guidance from **First National Bank App of the Year (FNBAOTY)** mentors, release `v2.6.1` is focused on 5 robust, failure-proof features engineered specifically for South African socio-technical conditions:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                 THE 5 DEFINITIVE MVP FEATURES (v2.5.0)                                │
+│                                 THE 5 DEFINITIVE MVP FEATURES (v2.6.1)                                │
 ├────────────────────────────────┬────────────────────────────────┬──────────────────────────────────────┤
 │ 1. Chameleon Camouflage & 0ms  │ 2. ECTA Sec 15 Evidence Vault   │ 3. Loadshedding Duress & SOS Flow    │
 │    • Sankofa Wisdom Launcher   │    • Hardware StrongBox Keystore│    • Duress PIN 9999 (STS Error 30)  │
@@ -174,18 +174,18 @@ All publication-grade technical specifications, legal frameworks, and architectu
 | **Compliance & Governance** | DVA Act 116/1998 & 14/2021, ECTA Sec 15, POPIA, OWASP Mobile Top 10 | [Markdown](public/COMPLIANCE_AND_GOVERNANCE_FINAL_MVP.md) • [PDF](public/security_and_ssdl/Umkhuseli_SSDL_Security_and_POPIA_Compliance-Post-feedback.pdf) |
 | **Requirements & Use Cases** | 15 Functional, 10 Non-Functional Specifications & 8 Use Cases | [Markdown](public/REQUIREMENTS_AND_USE_CASES_FINAL_MVP.md) • [PDF](public/requirements_and_use_cases/Umkhuseli_Requirements_and_Use_Cases_Post-Feedback.pdf) |
 | **Kanban Board** | Delivery across Sprints 1–6 (131 SP, 238/238 automated tests) | [Markdown](public/KANBAN_BOARD_FINAL_MVP.md) • [PDF](public/business_plan_and_roadmap/Umkhuseli_Lean_Business_Canvas_and_Roadmap_Post-Feedback.pdf) |
-| **Future Epics & Rollouts** | 7 Advanced Epics transitioning into v2.6.0 on the private repository | [Markdown](public/FUTURE_EPICS_AND_ROLLOUTS_FINAL_MVP.md) |
+| **Future Epics & Rollouts** | 7 Advanced Epics transitioning into v2.6.1 on the private repository | [Markdown](public/FUTURE_EPICS_AND_ROLLOUTS_FINAL_MVP.md) |
 | **Limitations & R&D** | Doze mode, budget enclaves, ECTA corroboration & loadshedding | [Markdown](public/LIMITATIONS_AND_RD_FINAL_MVP.md) |
 | **Presentation Deck** | 8-Slide Executive Deck & 3-Minute Live Hackathon Demo Run Sheet | [Markdown](public/PRESENTATION_DECK_FINAL_MVP.md) • [Interactive Deck](public/presentation_deck.html) |
 | **PDF Catalog** | Full directory and index of publication-ready PDF artifacts | [Markdown](public/README_PDF_ARTIFACTS.md) |
 
 ---
 
-## 🚀 Commercial Continuation: Release v2.6.0 (Latest)
+## 🚀 Commercial Continuation: Release v2.6.1 (Latest)
 
-While this public repository concludes its evaluation lifecycle at `v2.5.0`, **Sankofa Digital is actively developing `v2.6.0` (Latest) on its private repository** (`git@github.com:SankofaDigital/Umkhuseli-Core.git`). 
+While this public repository concludes its evaluation lifecycle at `v2.6.1`, **Sankofa Digital is actively developing `v2.6.1` (Latest) on its private repository** (`git@github.com:SankofaDigital/Umkhuseli-Core.git`). 
 
-The private continuation branches from tag `v2.5.0` and implements 7 enterprise-grade capabilities:
+The private continuation branches from tag `v2.6.1` and implements 7 enterprise-grade capabilities:
 
 1. **Enterprise Multi-Tenant Crisis Operations Center (C2)**: Real-time incident command and dispatch console for private security response fleets, campus protection services, and gender rights NGOs.
 2. **Direct Carrier Reverse-Billed USSD Gateway**: Commercial SS7/SMPP aggregations with Vodacom, MTN, Telkom, and Cell C enabling zero-balance USSD sessions (`*134*UMKHUSELI#`) with network-assisted cell-tower positioning.
@@ -255,7 +255,7 @@ npm run dev
 
 Adjudicators and mentors can verify the project deliverables against the following checklist:
 
-- [x] **v2.5.0 Release Tag Verified**: Git tag `v2.5.0` and `FNB_AOTY_2026_MVP` frozen at commit `080a213`.
+- [x] **v2.6.1 Release Tag Verified**: Git tag `v2.6.1` and `FNB_AOTY_2026_MVP` frozen at commit `080a213`.
 - [x] **Camouflage Launcher Verified**: Proverb engine and app drawer functioning on Android.
 - [x] **Decoy Web PWA Verified**: Authentic Eskom/City Power tariff calculation and STS token generation.
 - [x] **Duress Mode Verified**: PIN `9999` generates STS Error 30 failure screen without overt SOS indicators.
@@ -271,7 +271,7 @@ Adjudicators and mentors can verify the project deliverables against the followi
 ## ⚖️ Intellectual Property & Governance Declaration
 
 1. **Hackathon Evaluation License**:
-   Sankofa Digital grants the organizers, judges, technical mentors, and accredited evaluation staff of the **First National Bank App of the Year 2026 (FNB AOTY 2026)** a limited, non-exclusive, non-transferable, revocable evaluation license to inspect, build, run, and evaluate release `v2.5.0` of this repository solely for hackathon adjudication purposes for fourteen (14) calendar days following publication.
+   Sankofa Digital grants the organizers, judges, technical mentors, and accredited evaluation staff of the **First National Bank App of the Year 2026 (FNB AOTY 2026)** a limited, non-exclusive, non-transferable, revocable evaluation license to inspect, build, run, and evaluate release `v2.6.1` of this repository solely for hackathon adjudication purposes for fourteen (14) calendar days following publication.
 
 2. **Full Ownership Retained by Sankofa Digital**:
    Outside the specific construct, evaluation, and adjudication of the FNB AOTY 2026 Hackathon, **Full Ownership, Copyright, Trademark, Patent Rights, Trade Secrets, and Source Code Rights are unconditionally reserved and retained by Sankofa Digital**. No commercial exploitation, sublicensing, extraction, or unauthorized distribution is permitted.

@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.6.1] - 2026-10-30
+
+### Changes
+* feat(safehaven): make TCC forensic badges interactive with swipable service guidance modal (04a935a)
+* feat(tcc): add interactive clinical service info modal and refresh statutory dossier (66a1888)
+* chore: ignore .vercel and local env files (8b0a14f)
+* fix(build): resolve strict TypeScript types for clean production build and deployment (e6410b7)
+* Merge remote-tracking branch 'studio/main' (01672ca)
+* feat(camouflage): implement Face 4 Native Android Launcher facade and configure ishekomberera public domain (82294f9)
+* feat(disguise): introduce Coco Bongo music camouflage facade and expand disguise catalog (03ff523)
+
+
 All notable changes to **Umkhuseli: The Protector** (also known as *Sankofa Safe*) will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

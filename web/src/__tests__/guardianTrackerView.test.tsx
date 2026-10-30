@@ -176,4 +176,31 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
       );
     });
   });
+
+  it("resolves coordinates from survivor profile address (Flamingo Park, Welkom) to Bongani Hospital TCC without hardcoded Johannesburg fallback", () => {
+    localStorage.setItem(
+      "pcalc_uat_profile",
+      JSON.stringify({
+        userId: "test-user-fs",
+        isUatMode: false,
+        contacts: [],
+        personal: {
+          fullName: "Ntula Otto Thoso",
+          saIdNumber: "9410295183083",
+          address: "Flamingo Park, Welkom",
+        },
+        socials: { alertEmail: "", twitterHandle: "", instagramHandle: "", facebookProfile: "" },
+      })
+    );
+
+    render(<GuardianTrackerView beaconToken="welkom-test-token" />);
+
+    expect(screen.getByText(/Flamingo Park, Welkom/i)).toBeInTheDocument();
+    expect(screen.getByText("Bongani Hospital TCC")).toBeInTheDocument();
+    expect(screen.getByText(/Free State/i)).toBeInTheDocument();
+    expect(screen.getByText(/3\.4 km away/i)).toBeInTheDocument();
+    expect(screen.getByTestId("location-city")).toHaveTextContent("Welkom");
+
+    localStorage.clear();
+  });
 });

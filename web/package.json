@@ -1,7 +1,7 @@
 {
   "name": "umkhuseli-safe-web",
   "private": true,
-  "version": "2.6.0",
+  "version": "2.6.1",
   "type": "module",
   "engines": {
     "node": ">=22.19.0"
@@ -15,7 +15,10 @@
     "android-adb": "adb devices",
     "deploy-android": "node scripts/install-latest-apk.js",
     "install-ios": "node scripts/install-ios.js",
-    "deploy-ios": "node scripts/install-ios.js"
+    "deploy-ios": "node scripts/install-ios.js",
+    "release": "node scripts/release-and-push.mjs",
+    "release:minor": "node scripts/release-and-push.mjs minor",
+    "release:major": "node scripts/release-and-push.mjs major"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.8",
