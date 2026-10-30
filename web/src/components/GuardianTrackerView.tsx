@@ -111,6 +111,7 @@ export const GuardianTrackerView: React.FC<Props> = ({
       const uatProf = getUatProfile();
       if (uatProf?.personal?.address) {
         profileAreaCoords = resolveCoordinatesFromAddressOrProfile(uatProf.personal.address);
+      console.log("DEBUG_UAT_PROF_ADDR:", uatProf.personal.address, "RESOLVED:", profileAreaCoords);
       }
     } catch {
       /* ignore */

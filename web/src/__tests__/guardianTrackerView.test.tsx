@@ -194,9 +194,10 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
       })
     );
 
-    render(<GuardianTrackerView beaconToken="welkom-test-token" />);
-
-    screen.debug();
+    const { container } = render(<GuardianTrackerView beaconToken="welkom-test-token" />);
+    console.log("===TEST_DOM_OUTPUT===");
+    console.log(container.innerHTML);
+    console.log("===END_TEST_DOM_OUTPUT===");
     expect(screen.getByText(/Flamingo Park, Welkom/i)).toBeInTheDocument();
     expect(screen.getByText("Bongani Hospital TCC")).toBeInTheDocument();
     expect(screen.getByText(/Free State/i)).toBeInTheDocument();
