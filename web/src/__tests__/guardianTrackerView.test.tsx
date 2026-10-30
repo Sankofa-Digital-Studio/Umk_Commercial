@@ -7,6 +7,7 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    delete (global.navigator as any).geolocation;
   });
 
   it("renders tactical rescue console header, live beacon banner, and telemetry", () => {
@@ -195,6 +196,7 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
 
     render(<GuardianTrackerView beaconToken="welkom-test-token" />);
 
+    screen.debug();
     expect(screen.getByText(/Flamingo Park, Welkom/i)).toBeInTheDocument();
     expect(screen.getByText("Bongani Hospital TCC")).toBeInTheDocument();
     expect(screen.getByText(/Free State/i)).toBeInTheDocument();
