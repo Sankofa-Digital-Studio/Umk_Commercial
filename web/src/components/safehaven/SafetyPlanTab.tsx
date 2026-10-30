@@ -658,7 +658,7 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
                   </span>
                 </div>
                 <p className="text-slate-400 text-[11px] mt-1">
-                  Receive silent push alerts when emergency guardians acknowledge your distress beacons.
+                  Receive alerts when emergency guardians acknowledge your distress beacons. Protected with action guard to prevent safe haven exit.
                 </p>
               </div>
               <button
@@ -668,6 +668,158 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
               >
                 {permissionsStatus.notifications === "granted" ? "Enabled" : "Enable"}
               </button>
+            </div>
+
+            {/* Granular Survivor Notification Safety Controls */}
+            <div className="p-3.5 bg-slate-900/90 rounded-xl border border-emerald-500/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-emerald-400" />
+                    Survivor Safety Notification Profile
+                  </h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Control how and when alerts appear to prevent an abuser from discovering notifications
+                  </p>
+                </div>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/60">
+                  {notifControls.deliveryLevel}
+                </span>
+              </div>
+
+              {/* Delivery Level Radios / Chips */}
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => handleUpdateNotifControls({ deliveryLevel: "ULTRA_DISCREET" })}
+                  className={`p-2.5 rounded-lg border text-left transition-all ${
+                    notifControls.deliveryLevel === "ULTRA_DISCREET"
+                      ? "bg-emerald-950/70 border-emerald-500 text-white shadow-sm"
+                      : "bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-900"
+                  }`}
+                >
+                  <div className="font-bold text-emerald-400 flex items-center justify-between">
+                    <span>1. Ultra Discreet</span>
+                    {notifControls.deliveryLevel === "ULTRA_DISCREET" && <CheckCircle2 className="w-3.5 h-3.5" />}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Zero banners, zero sound. Silent palm haptics only. Safest against screen inspection.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleUpdateNotifControls({ deliveryLevel: "DECOY_DISGUISED" })}
+                  className={`p-2.5 rounded-lg border text-left transition-all ${
+                    notifControls.deliveryLevel === "DECOY_DISGUISED"
+                      ? "bg-emerald-950/70 border-emerald-500 text-white shadow-sm"
+                      : "bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-900"
+                  }`}
+                >
+                  <div className="font-bold text-emerald-400 flex items-center justify-between">
+                    <span>2. Camouflage Disguised</span>
+                    {notifControls.deliveryLevel === "DECOY_DISGUISED" && <CheckCircle2 className="w-3.5 h-3.5" />}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Alerts appear as innocent PowerCal SA electricity tariff syncs. Completely harmless.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleUpdateNotifControls({ deliveryLevel: "CONFIDENTIAL" })}
+                  className={`p-2.5 rounded-lg border text-left transition-all ${
+                    notifControls.deliveryLevel === "CONFIDENTIAL"
+                      ? "bg-emerald-950/70 border-emerald-500 text-white shadow-sm"
+                      : "bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-900"
+                  }`}
+                >
+                  <div className="font-bold text-emerald-400 flex items-center justify-between">
+                    <span>3. In-SafeHaven Only</span>
+                    {notifControls.deliveryLevel === "CONFIDENTIAL" && <CheckCircle2 className="w-3.5 h-3.5" />}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Alerts only render when you are actively inside the unlocked vault. Suppressed elsewhere.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleUpdateNotifControls({ deliveryLevel: "FULL_ALERTS" })}
+                  className={`p-2.5 rounded-lg border text-left transition-all ${
+                    notifControls.deliveryLevel === "FULL_ALERTS"
+                      ? "bg-emerald-950/70 border-emerald-500 text-white shadow-sm"
+                      : "bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-900"
+                  }`}
+                >
+                  <div className="font-bold text-emerald-400 flex items-center justify-between">
+                    <span>4. Standard Direct Alerts</span>
+                    {notifControls.deliveryLevel === "FULL_ALERTS" && <CheckCircle2 className="w-3.5 h-3.5" />}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Visible emergency confirmation toasts with audible & haptic acknowledgments.
+                  </p>
+                </button>
+              </div>
+
+              {/* Granular Channel Toggles */}
+              <div className="pt-2 border-t border-slate-800 space-y-2">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                  Channel Selection By Threat Level:
+                </span>
+
+                <label className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 cursor-pointer hover:bg-slate-950">
+                  <div>
+                    <span className="font-bold text-slate-200">Guardian Safe-Arrival Acknowledgments</span>
+                    <p className="text-[10px] text-slate-400">Pings when your ICE contact confirms you reached safety</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notifControls.enableGuardianArrivalAlerts}
+                    onChange={(e) => handleUpdateNotifControls({ enableGuardianArrivalAlerts: e.target.checked })}
+                    className="w-4 h-4 rounded text-emerald-500 accent-emerald-500 bg-slate-900 border-slate-700"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 cursor-pointer hover:bg-slate-950">
+                  <div>
+                    <span className="font-bold text-slate-200">Safe Corridor & Journey Deviation Alerts</span>
+                    <p className="text-[10px] text-slate-400">Subtle alerts if e-hailing or taxi deviates &gt;150m from designated route</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notifControls.enableJourneyDeviationAlerts}
+                    onChange={(e) => handleUpdateNotifControls({ enableJourneyDeviationAlerts: e.target.checked })}
+                    className="w-4 h-4 rounded text-emerald-500 accent-emerald-500 bg-slate-900 border-slate-700"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 cursor-pointer hover:bg-slate-950">
+                  <div>
+                    <span className="font-bold text-slate-200">Offline Safe-Haven Map Expiry Warnings</span>
+                    <p className="text-[10px] text-slate-400">Notifies when 30-day offline municipal waypoint cache needs renewal</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notifControls.enableOfflineMapExpiryAlerts}
+                    onChange={(e) => handleUpdateNotifControls({ enableOfflineMapExpiryAlerts: e.target.checked })}
+                    className="w-4 h-4 rounded text-emerald-500 accent-emerald-500 bg-slate-900 border-slate-700"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 cursor-pointer hover:bg-slate-950">
+                  <div>
+                    <span className="font-bold text-slate-200">Mask Dispatched Alerts As Innocent Utility Statements</span>
+                    <p className="text-[10px] text-slate-400">If abuser glances at screen, notifications display as STS electricity tokens</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notifControls.disguiseAsUtilityText}
+                    onChange={(e) => handleUpdateNotifControls({ disguiseAsUtilityText: e.target.checked })}
+                    className="w-4 h-4 rounded text-emerald-500 accent-emerald-500 bg-slate-900 border-slate-700"
+                  />
+                </label>
+              </div>
             </div>
           </div>
         )}

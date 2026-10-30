@@ -406,7 +406,7 @@ export const SA_SETTLEMENTS_DATABASE: SouthAfricanGeoSettlement[] = [
     lng: 26.1596,
   },
   {
-    town: "Flamingo Park / Welkom",
+    town: "Welkom",
     city: "Welkom",
     district: "Lejweleputswa District Municipality",
     region: "Free State Goldfields",
