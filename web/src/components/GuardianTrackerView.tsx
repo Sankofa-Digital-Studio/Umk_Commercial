@@ -18,12 +18,29 @@ import { getCachedLiveLocation } from "../services/liveLocationService";
 import {
   readDeviceLocationWithDetails,
   inferSouthAfricanLocationSync,
+  resolveCoordinatesFromAddressOrProfile,
   SouthAfricanLocationDetails
 } from "../services/deviceLocationResolver";
+import { getUatProfile } from "../services/uatProfileService";
 
 interface Props {
   beaconToken?: string;
   onExit?: () => void;
+}
+
+
+export function formatTriggeredTime(dispatchedAtIso: string): string {
+  try {
+    const diffMs = Date.now() - new Date(dispatchedAtIso).getTime();
+    const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+    if (diffMinutes === 0) return "Just now (< 1 min ago)";
+    if (diffMinutes === 1) return "1 minute ago";
+    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  } catch {
+    return "Recent";
+  }
 }
 
 export const GuardianTrackerView: React.FC<Props> = ({
@@ -89,12 +106,37 @@ export const GuardianTrackerView: React.FC<Props> = ({
       }
     }
 
-    // Default to Johannesburg Central (-26.2041, 28.0473) if coordinates are not provided
+    // Prioritize: 1) explicit beacon/URL coords, 2) live cached device GPS, 3) survivor profile address/area
     const cachedLiveGps = getCachedLiveLocation();
-    const finalLat = lat !== undefined && !isNaN(lat) ? lat : (cachedLiveGps ? cachedLiveGps.lat : -26.2041);
-    const finalLng = lng !== undefined && !isNaN(lng) ? lng : (cachedLiveGps ? cachedLiveGps.lng : 28.0473);
+    let profileAreaCoords: { latitude: number; longitude: number; areaName: string; province: string } | null = null;
+    try {
+      const uatProf = getUatProfile();
+      if (uatProf?.personal?.address) {
+        profileAreaCoords = resolveCoordinatesFromAddressOrProfile(uatProf.personal.address);
+      }
+    } catch {
+      /* ignore */
+    }
+
+    let resolvedLat = -26.2041;
+    let resolvedLng = 28.0473;
+    let resolvedArea = "Johannesburg Central / Gauteng";
+
+    if (cachedLiveGps) {
+      resolvedLat = cachedLiveGps.lat;
+      resolvedLng = cachedLiveGps.lng;
+      resolvedArea = cachedLiveGps.areaName || resolvedArea;
+    } else if (profileAreaCoords) {
+      resolvedLat = profileAreaCoords.latitude;
+      resolvedLng = profileAreaCoords.longitude;
+      resolvedArea = profileAreaCoords.areaName;
+    }
+
+    const finalLat = lat !== undefined && !isNaN(lat) ? lat : resolvedLat;
+    const finalLng = lng !== undefined && !isNaN(lng) ? lng : resolvedLng;
     const finalAcc = acc !== undefined && !isNaN(acc) ? acc : (cachedLiveGps?.accuracy ?? 14);
     const finalBat = bat !== undefined && !isNaN(bat) ? bat : 78;
+    const finalArea = hasExplicitBeaconCoordinates && areaName ? areaName : (cachedLiveGps?.areaName || (profileAreaCoords ? profileAreaCoords.areaName : areaName));
 
     return {
       id: tokenVal,
@@ -102,7 +144,7 @@ export const GuardianTrackerView: React.FC<Props> = ({
       latitude: finalLat,
       longitude: finalLng,
       accuracyMeters: finalAcc,
-      areaName,
+      areaName: finalArea,
       batteryPercentage: finalBat,
       isCharging,
       hasExplicitBeaconCoordinates

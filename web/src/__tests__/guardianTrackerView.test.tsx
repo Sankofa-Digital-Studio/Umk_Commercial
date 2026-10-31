@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
 import { GuardianTrackerView } from "../components/GuardianTrackerView";
@@ -7,6 +7,12 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    delete (global.navigator as any).geolocation;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("renders tactical rescue console header, live beacon banner, and telemetry", () => {
@@ -144,6 +150,8 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
   });
 
   it("reads device location and refreshes location telemetry when refresh button is clicked", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Offline test environment")));
+
     const mockGetCurrentPosition = vi.fn().mockImplementation((success) => {
       success({
         coords: {
@@ -164,16 +172,48 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
 
     render(<GuardianTrackerView beaconToken="refresh-test" />);
 
+    await waitFor(() => {
+      expect(screen.getByTestId("location-city")).toHaveTextContent("Cape Town");
+    });
+    mockGetCurrentPosition.mockClear();
+
     const refreshBtn = screen.getByRole("button", { name: /Refresh device location/i });
     expect(refreshBtn).toBeInTheDocument();
 
     fireEvent.click(refreshBtn);
 
     await waitFor(() => {
+      expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
       expect(screen.getByTestId("location-city")).toHaveTextContent("Cape Town");
       expect(screen.getByTestId("location-district")).toHaveTextContent(
         "City of Cape Town Metropolitan Municipality"
       );
     });
+  });
+
+  it("resolves coordinates from survivor profile address (Flamingo Park, Welkom) to Bongani Hospital TCC without hardcoded Johannesburg fallback", () => {
+    localStorage.setItem(
+      "pcalc_uat_profile",
+      JSON.stringify({
+        userId: "test-user-fs",
+        isUatMode: false,
+        contacts: [],
+        personal: {
+          fullName: "Ntula Otto Thoso",
+          saIdNumber: "9410295183083",
+          address: "Flamingo Park, Welkom",
+        },
+        socials: { alertEmail: "", twitterHandle: "", instagramHandle: "", facebookProfile: "" },
+      })
+    );
+
+    render(<GuardianTrackerView beaconToken="welkom-test-token" />);
+    expect(screen.getByText(/Flamingo Park, Welkom/i)).toBeInTheDocument();
+    expect(screen.getByText("Bongani Hospital TCC")).toBeInTheDocument();
+    expect(screen.getByTestId("location-region")).toHaveTextContent("Free State Goldfields");
+    expect(screen.getByText(/3\.4 km away/i)).toBeInTheDocument();
+    expect(screen.getByTestId("location-city")).toHaveTextContent("Welkom");
+
+    localStorage.clear();
   });
 });

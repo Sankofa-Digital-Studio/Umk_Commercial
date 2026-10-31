@@ -107,7 +107,16 @@ export function inferAreaAndProvince(
     };
   }
 
-  // Free State - Mangaung / Bloemfontein
+  // Free State - Welkom / Goldfields / Lejweleputswa
+  if (lat <= -27.8 && lat >= -28.2 && lng >= 26.5 && lng <= 27.0) {
+    return {
+      areaName: "Flamingo Park, Welkom / Free State Goldfields",
+      metro: "Welkom",
+      province: "Free State",
+    };
+  }
+
+    // Free State - Mangaung / Bloemfontein
   if (lat <= -28.9 && lat >= -29.4 && lng >= 26.0 && lng <= 26.4) {
     return {
       areaName: "Mangaung Metro / Bloemfontein",

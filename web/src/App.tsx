@@ -19,6 +19,7 @@ import {
   attachIosStealthSentinel,
   triggerTactileHapticPulse,
 } from "./services/iosStealthManager";
+import { isPanicExitSuppressed } from "./services/notificationSafetyManager";
 import { requestPersistentStorage } from "./services/storagePersistence";
 import { applyTheme, getInitialTheme } from "./services/themeManager";
 import { SpeedInsights } from '@vercel/speed-insights/react';
@@ -156,6 +157,7 @@ export const App: React.FC = () => {
     // Visibility Evasion: screen lock or app switcher trigger
     const handleVisibilityChange = () => {
       if (document.hidden) {
+        if (isPanicExitSuppressed()) return;
         trigger0msPanicCamouflage();
       }
     };
@@ -182,18 +184,25 @@ export const App: React.FC = () => {
     };
 
     // Window blur: prevent OS task switcher snapshots from capturing domestic violence data
+    // Ignored when user is interacting with system permission / notification dialogues
     const handleWindowBlur = () => {
+      if (isPanicExitSuppressed()) return;
       trigger0msPanicCamouflage();
     };
 
     // Window pagehide
     const handlePageHide = () => {
+      if (isPanicExitSuppressed()) return;
       trigger0msPanicCamouflage();
     };
 
     // Attach iOS Safari Stealth Sentinel (App Switcher evasion, pagehide, shake gesture)
     const cleanupIosStealth = attachIosStealthSentinel({
-      onPanicExit: trigger0msPanicCamouflage,
+      onPanicExit: () => {
+        if (!isPanicExitSuppressed()) {
+          trigger0msPanicCamouflage();
+        }
+      },
     });
 
     document.addEventListener("visibilitychange", handleVisibilityChange);

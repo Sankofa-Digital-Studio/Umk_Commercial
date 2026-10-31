@@ -406,6 +406,26 @@ export const SA_SETTLEMENTS_DATABASE: SouthAfricanGeoSettlement[] = [
     lng: 26.1596,
   },
   {
+    town: "Welkom",
+    city: "Welkom",
+    district: "Lejweleputswa District Municipality",
+    region: "Free State Goldfields",
+    province: "Free State",
+    suburb: "Flamingo Park",
+    lat: -27.9471,
+    lng: 26.7237,
+  },
+  {
+    town: "Thabong",
+    city: "Welkom",
+    district: "Lejweleputswa District Municipality",
+    region: "Free State Goldfields",
+    province: "Free State",
+    suburb: "Mothusi",
+    lat: -27.9733,
+    lng: 26.7419,
+  },
+  {
     town: "Botshabelo",
     city: "Bloemfontein",
     district: "Mangaung Metropolitan Municipality",
@@ -714,4 +734,91 @@ export async function readDeviceLocationWithDetails(options?: {
       }
     );
   });
+}
+
+
+/**
+ * Resolves South African coordinates and area information from a user-configured address string,
+ * town, suburb or survivor profile text.
+ */
+export function resolveCoordinatesFromAddressOrProfile(
+  address?: string
+): { latitude: number; longitude: number; areaName: string; province: string } | null {
+  if (!address || typeof address !== "string" || !address.trim()) return null;
+  const lower = address.toLowerCase();
+
+  // Direct keyword matching against known settlement centroids
+  for (const s of SA_SETTLEMENTS_DATABASE) {
+    if (
+      lower.includes(s.town.toLowerCase()) ||
+      lower.includes(s.city.toLowerCase()) ||
+      (s.suburb && lower.includes(s.suburb.toLowerCase()))
+    ) {
+      return {
+        latitude: s.lat,
+        longitude: s.lng,
+        areaName: `${s.suburb ? s.suburb + ", " : ""}${s.town}`,
+        province: s.province,
+      };
+    }
+  }
+
+  if (lower.includes("welkom") || lower.includes("flamingo park") || lower.includes("thabong")) {
+    return {
+      latitude: -27.9471,
+      longitude: 26.7237,
+      areaName: "Flamingo Park, Welkom",
+      province: "Free State",
+    };
+  }
+  if (lower.includes("bloemfontein") || lower.includes("mangaung")) {
+    return {
+      latitude: -29.0852,
+      longitude: 26.1596,
+      areaName: "Bloemfontein Central",
+      province: "Free State",
+    };
+  }
+  if (lower.includes("soweto")) {
+    return {
+      latitude: -26.2606,
+      longitude: 27.9429,
+      areaName: "Soweto / Diepkloof",
+      province: "Gauteng",
+    };
+  }
+  if (lower.includes("sandton")) {
+    return {
+      latitude: -26.1076,
+      longitude: 28.0567,
+      areaName: "Sandton",
+      province: "Gauteng",
+    };
+  }
+  if (lower.includes("pretoria") || lower.includes("tshwane")) {
+    return {
+      latitude: -25.7479,
+      longitude: 28.2293,
+      areaName: "Pretoria Central",
+      province: "Gauteng",
+    };
+  }
+  if (lower.includes("cape town") || lower.includes("kaapstad")) {
+    return {
+      latitude: -33.9249,
+      longitude: 18.4241,
+      areaName: "Cape Town CBD",
+      province: "Western Cape",
+    };
+  }
+  if (lower.includes("durban") || lower.includes("ethekwini")) {
+    return {
+      latitude: -29.8587,
+      longitude: 31.0218,
+      areaName: "Durban Central",
+      province: "KwaZulu-Natal",
+    };
+  }
+
+  return null;
 }

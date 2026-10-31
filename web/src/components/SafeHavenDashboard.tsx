@@ -37,6 +37,12 @@ import {
   saveLiveLocation,
   inferAreaAndProvince,
 } from "../services/liveLocationService";
+import {
+  beginPermissionActionGuard,
+  endPermissionActionGuard,
+  getNotificationControls,
+  sanitizeAlertTextForSafety,
+} from "../services/notificationSafetyManager";
 
 // Modular Safe Haven Tab Components
 import { SosEmergencyTab } from "./safehaven/SosEmergencyTab";
@@ -65,8 +71,20 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     title: string,
     message: string
   ) => {
+    const controls = getNotificationControls();
+    // In ULTRA_DISCREET mode, suppress visual toasts completely to prevent over-the-shoulder discovery
+    if (controls.deliveryLevel === "ULTRA_DISCREET") {
+      triggerTactileHapticPulse(15);
+      return;
+    }
+    const sanitized = sanitizeAlertTextForSafety(
+      title,
+      message,
+      controls.deliveryLevel,
+      controls.disguiseAsUtilityText
+    );
     const mapped = type === "error" ? "failed" : type;
-    showToast(mapped, title, message);
+    showToast(mapped, sanitized.title, sanitized.message);
   };
 
   const [isOnboarded, setIsOnboarded] = useState<boolean>(() => {
@@ -145,12 +163,14 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     onPanicLock();
   };
 
-  // Hardware Location Acquisition
+  // Hardware Location Acquisition with Action Guard to prevent panic kickout
   const refreshLiveLocation = () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
     setIsLocating(true);
+    beginPermissionActionGuard(15000);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        endPermissionActionGuard();
         saveLiveLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy || 15);
         const meta = inferAreaAndProvince(pos.coords.latitude, pos.coords.longitude);
         setUserLocation({
@@ -163,6 +183,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
         setIsLocating(false);
       },
       () => {
+        endPermissionActionGuard();
         setPermissionsStatus((p) => ({ ...p, geolocation: "prompt" }));
         setIsLocating(false);
       },
@@ -202,28 +223,38 @@ export const SafeHavenDashboard: React.FC<Props> = ({
 
   const requestStoragePersistence = async () => {
     if (navigator.storage?.persist) {
-      const persisted = await navigator.storage.persist();
-      setPermissionsStatus((prev) => ({
-        ...prev,
-        storage: persisted ? "persisted" : "not_persisted",
-      }));
-      showToast(
-        persisted ? "success" : "warning",
-        "Storage Persistence",
-        persisted ? "Vault durable storage granted." : "Storage not persisted."
-      );
+      beginPermissionActionGuard(15000);
+      try {
+        const persisted = await navigator.storage.persist();
+        setPermissionsStatus((prev) => ({
+          ...prev,
+          storage: persisted ? "persisted" : "not_persisted",
+        }));
+        showToast(
+          persisted ? "success" : "warning",
+          "Storage Persistence",
+          persisted ? "Vault durable storage granted." : "Storage not persisted."
+        );
+      } finally {
+        endPermissionActionGuard();
+      }
     }
   };
 
   const requestNotificationPermission = async () => {
     if ("Notification" in window) {
-      const res = await Notification.requestPermission();
-      setPermissionsStatus((prev) => ({ ...prev, notifications: res as any }));
-      showToast(
-        res === "granted" ? "success" : "info",
-        "Notifications",
-        res === "granted" ? "Emergency push alerts enabled." : "Notifications prompt pending."
-      );
+      beginPermissionActionGuard(25000);
+      try {
+        const res = await Notification.requestPermission();
+        setPermissionsStatus((prev) => ({ ...prev, notifications: res as any }));
+        showToast(
+          res === "granted" ? "success" : "info",
+          "Notifications",
+          res === "granted" ? "Emergency push alerts enabled." : "Notifications prompt pending."
+        );
+      } finally {
+        endPermissionActionGuard();
+      }
     }
   };
 
