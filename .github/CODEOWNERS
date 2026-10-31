@@ -1,0 +1,8 @@
+# Default ownership for repository changes
+* @OhhttooeXCIV
+
+# Safety-sensitive and operational surfaces
+/app/ @OhhttooeXCIV
+/web/src/services/ @OhhttooeXCIV
+/supabase/ @OhhttooeXCIV
+/.github/ @OhhttooeXCIV

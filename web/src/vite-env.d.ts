@@ -85,6 +85,7 @@ declare module 'lucide-react' {
   export const SlidersHorizontal: React.FC<any>;
   export const Waves: React.FC<any>;
   export const Activity: React.FC<any>;
+  export const Brain: React.FC<any>;
   export const TrendingDown: React.FC<any>;
   export const TrendingUp: React.FC<any>;
   export const Flame: React.FC<any>;

@@ -1,13 +1,14 @@
 name: Bug Report
 description: Create a report to help us resolve a defect or unexpected behavior
-title: "[BUG]: "
-labels: ["bug", "triage"]
+title: "[BUG] "
+labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
         Thank you for reporting an issue in **Umkhuseli: The Protector (Sankofa Safe)**.
         Please provide detailed information so our engineering team can isolate and reproduce the bug safely.
+        **Do not include real survivor data, credentials, phone numbers, locations, evidence, or unredacted screenshots.**
   - type: dropdown
     id: component
     attributes:
@@ -19,9 +20,9 @@ body:
         - "SOS Dispatch & Tactile Countdown State Machine"
         - "Biometric Authentication & Vault Storage (Room / SQLite)"
         - "AES-256-GCM Encryption / KeyStore StrongBox"
-        - "Form 2 Protection Order Exporter / Record Viewer"
+        - "Incident-document PDF Exporter / Record Viewer"
         - "Thuthuzela Care Centres Directory (Offline Cache / Search)"
-        - "Supabase Edge Functions / E2EE Cloud Sync"
+        - "Supabase Edge Functions / Optional Cloud Sync"
         - "Build & Tooling (AGP, Gradle, ProGuard/R8, KSP)"
     validations:
       required: true
@@ -51,6 +52,13 @@ body:
     validations:
       required: true
   - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Release tag, commit SHA, or deployment date where the issue occurs.
+    validations:
+      required: true
+  - type: input
     id: environment
     attributes:
       label: Device & OS Environment
@@ -73,3 +81,10 @@ body:
     attributes:
       label: Error Logs or Stack Trace (Scrubbed)
       description: Please ensure all personal phone numbers, names, or locations are redacted before pasting.
+  - type: checkboxes
+    id: privacy_confirmation
+    attributes:
+      label: Privacy confirmation
+      options:
+        - label: I removed personal information, secrets, precise locations, and real incident evidence from this report.
+          required: true
