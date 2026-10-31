@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
 import { GuardianTrackerView } from "../components/GuardianTrackerView";
@@ -8,6 +8,11 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
     localStorage.clear();
     vi.clearAllMocks();
     delete (global.navigator as any).geolocation;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("renders tactical rescue console header, live beacon banner, and telemetry", () => {
@@ -145,6 +150,8 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
   });
 
   it("reads device location and refreshes location telemetry when refresh button is clicked", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Offline test environment")));
+
     const mockGetCurrentPosition = vi.fn().mockImplementation((success) => {
       success({
         coords: {
@@ -165,12 +172,18 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
 
     render(<GuardianTrackerView beaconToken="refresh-test" />);
 
+    await waitFor(() => {
+      expect(screen.getByTestId("location-city")).toHaveTextContent("Cape Town");
+    });
+    mockGetCurrentPosition.mockClear();
+
     const refreshBtn = screen.getByRole("button", { name: /Refresh device location/i });
     expect(refreshBtn).toBeInTheDocument();
 
     fireEvent.click(refreshBtn);
 
     await waitFor(() => {
+      expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
       expect(screen.getByTestId("location-city")).toHaveTextContent("Cape Town");
       expect(screen.getByTestId("location-district")).toHaveTextContent(
         "City of Cape Town Metropolitan Municipality"
