@@ -46,7 +46,7 @@ jobs:
 
       - name: Upload Debug APK Artifact
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: umkhuseli-debug-apk
           path: app/build/outputs/apk/debug/*.apk
@@ -81,7 +81,7 @@ jobs:
 
       - name: Upload Web PWA Dist Artifact
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: umkhuseli-web-dist
           path: web/dist/
