@@ -20,6 +20,7 @@ import {
   Square,
 } from 'lucide-react';
 import { setActiveDisguise, getAllDisguises } from '../services/disguiseManager';
+import { getCachedLiveLocation } from '../services/liveLocationService';
 
 export interface AndroidLauncherFacadeProps {
   onUnlockSafeHaven: () => void;
@@ -45,6 +46,8 @@ export const AndroidLauncherFacade: React.FC<AndroidLauncherFacadeProps> = ({
   // Clock
   const [currentTime, setCurrentTime] = useState<string>('14:32');
   const [currentDate, setCurrentDate] = useState<string>('Tue, 27 Oct');
+  const cachedLocation = getCachedLiveLocation();
+  const launcherLocation = cachedLocation?.metro || 'Location off';
 
   // Clock widget 3-tap gesture tracking
   const widgetTapsRef = useRef<number[]>([]);
@@ -178,7 +181,7 @@ export const AndroidLauncherFacade: React.FC<AndroidLauncherFacadeProps> = ({
             <span>•</span>
             <span className="flex items-center gap-1 text-amber-300">
               <CloudSun className="w-3.5 h-3.5" />
-              <span>Johannesburg 22°C</span>
+              <span>{launcherLocation} 22°C</span>
             </span>
           </div>
         </div>
@@ -552,7 +555,7 @@ export const AndroidLauncherFacade: React.FC<AndroidLauncherFacadeProps> = ({
 
             <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
               <div className="flex items-center justify-between text-xs font-bold text-white">
-                <span>City of Johannesburg</span>
+                <span>{cachedLocation?.province || 'Municipal Services'}</span>
                 <span className="text-[10px] text-slate-500 font-mono">Yesterday</span>
               </div>
               <p className="text-xs text-slate-300">

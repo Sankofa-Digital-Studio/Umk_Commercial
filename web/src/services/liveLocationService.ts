@@ -136,7 +136,7 @@ export function inferAreaAndProvince(
   if (lat <= -22.1 && lat >= -25.3 && lng >= 26.4 && lng <= 31.9) {
     return {
       areaName: "Limpopo Provincial Safety Zone",
-      metro: "Johannesburg",
+      metro: "Polokwane",
       province: "Limpopo",
     };
   }
@@ -145,7 +145,7 @@ export function inferAreaAndProvince(
   if (lat <= -24.0 && lat >= -27.5 && lng >= 28.3 && lng <= 32.0) {
     return {
       areaName: "Mpumalanga Provincial Safety Zone",
-      metro: "Johannesburg",
+      metro: "Mbombela",
       province: "Mpumalanga",
     };
   }
@@ -154,7 +154,7 @@ export function inferAreaAndProvince(
   if (lat <= -24.6 && lat >= -28.1 && lng >= 22.6 && lng <= 28.3) {
     return {
       areaName: "North West Provincial Safety Zone",
-      metro: "Johannesburg",
+      metro: "Rustenburg",
       province: "North West",
     };
   }
@@ -163,16 +163,16 @@ export function inferAreaAndProvince(
   if (lat <= -24.8 && lat >= -32.9 && lng >= 16.4 && lng <= 25.5) {
     return {
       areaName: "Northern Cape Provincial Safety Zone",
-      metro: "Bloemfontein",
+      metro: "Kimberley",
       province: "Northern Cape",
     };
   }
 
   // Generic South African Territory
   return {
-    areaName: "South Africa Municipal Safety Zone",
-    metro: "Johannesburg",
-    province: "Gauteng",
+    areaName: "South Africa — precise municipal area unavailable",
+    metro: "Location unavailable",
+    province: "South Africa",
   };
 }
 

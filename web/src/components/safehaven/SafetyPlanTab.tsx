@@ -49,6 +49,9 @@ interface SafetyPlanTabProps {
   onRefreshLocation: () => void;
   onRequestStorage: () => void;
   onRequestNotifications: () => void;
+  onEditProfile: () => void;
+  onManageIceContacts: () => void;
+  onOpenLifeline: (dialString: string, title: string) => void;
   onShowToast?: (type: "success" | "error" | "warning" | "info", title: string, message: string) => void;
 }
 
@@ -62,6 +65,9 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
   onRefreshLocation,
   onRequestStorage,
   onRequestNotifications,
+  onEditProfile,
+  onManageIceContacts,
+  onOpenLifeline,
   onShowToast,
 }) => {
   const [isProfileExpanded, setIsProfileExpanded] = useState<boolean>(true);
@@ -86,7 +92,7 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
   // Profile form state
   const [fullName, setFullName] = useState(uatProfile.personal.fullName);
   const [saIdNumber, setSaIdNumber] = useState(uatProfile.personal.saIdNumber || "");
-  const [safeWord, setSafeWord] = useState(uatProfile.personal.safeWord || "LAVENDER");
+  const [safeWord, setSafeWord] = useState(uatProfile.personal.safeWord || "");
   const [medicalConditions, setMedicalConditions] = useState(uatProfile.personal.medicalConditions || "");
 
   // Add contact form state
@@ -109,14 +115,14 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
       ...uatProfile,
       personal: {
         ...uatProfile.personal,
-        fullName: fullName.trim() || "Survivor",
+        fullName: fullName.trim(),
         saIdNumber: saIdNumber.trim(),
-        safeWord: safeWord.trim().toUpperCase() || "LAVENDER",
+        safeWord: safeWord.trim().toUpperCase(),
         medicalConditions: medicalConditions.trim(),
       },
     };
     onUpdateProfile(updated);
-    const msg = "Survivor emergency profile saved locally.";
+    const msg = "Survivor emergency profile saved securely.";
     setProfileSaveMessage(msg);
     if (onShowToast) onShowToast("success", "Profile Saved", msg);
     setTimeout(() => setProfileSaveMessage(null), 4000);
@@ -127,7 +133,7 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
     if (!newContactName.trim() || !newContactPhone.trim()) return;
 
     const newContact: IceContact = {
-      id: "ice_" + Date.now(),
+      id: crypto.randomUUID(),
       name: newContactName.trim(),
       relationship: newContactRel,
       phone: newContactPhone.trim(),
@@ -184,23 +190,33 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
 
   return (
     <div className="space-y-5 animate-in fade-in duration-200">
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={onEditProfile}
+          className="rounded-xl bg-sky-600 px-3 py-2.5 text-xs font-bold text-white hover:bg-sky-500"
+        >
+          Edit survivor profile
+        </button>
+        <button
+          type="button"
+          onClick={onManageIceContacts}
+          className="rounded-xl bg-amber-500 px-3 py-2.5 text-xs font-black text-slate-950 hover:bg-amber-400"
+        >
+          Manage ICE contacts
+        </button>
+      </div>
+
       {/* Quick Distress Email Dispatch Button */}
-      <a
+      {uatProfile.contacts[0]?.email && <a
         href={generateDistressEmailUrl(
-          uatProfile.contacts[0] || {
-            id: "fallback-ice",
-            name: "ICE Guardian",
-            email: uatProfile.socials.alertEmail || "emergency@example.com",
-            phone: "",
-            isPrimary: true,
-            relationship: "Emergency Contact",
-          }
+          uatProfile.contacts[0]
         )}
         className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 hover:text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-sm"
       >
         <Share2 className="w-4 h-4 text-amber-400" />
         <span>Send Distress Alert via Email</span>
-      </a>
+      </a>}
 
       {/* Current Identified Area & Offline Maps Component */}
       <GoogleMapsSafeHavenView />
@@ -829,7 +845,7 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
       <EscapeGoBagChecklist />
 
       {/* Your Rights Under South African Law */}
-      <SouthAfricanLegalRights />
+      <SouthAfricanLegalRights onOpenLifeline={onOpenLifeline} />
 
       {/* 4. SECURE SOCIAL & NOTIFICATION CHANNELS */}
       <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">

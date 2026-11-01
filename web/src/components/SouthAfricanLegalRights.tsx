@@ -1,7 +1,11 @@
 import React, { useState } from "react";
 import { Scale, ChevronDown, ChevronUp, ShieldCheck, AlertCircle, FileText } from "lucide-react";
 
-export const SouthAfricanLegalRights: React.FC = () => {
+interface SouthAfricanLegalRightsProps {
+  onOpenLifeline?: (dialString: string, title: string) => void;
+}
+
+export const SouthAfricanLegalRights: React.FC<SouthAfricanLegalRightsProps> = ({ onOpenLifeline }) => {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
@@ -88,7 +92,22 @@ export const SouthAfricanLegalRights: React.FC = () => {
           <div className="p-2.5 rounded-lg bg-sky-950/40 border border-sky-800/40 flex items-start gap-2.5 text-[11px] text-sky-200">
             <ShieldCheck className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
             <span>
-              <strong>Legal Aid South Africa:</strong> If you need representation for contested final hearings, call Toll-Free: <strong>0800 110 110</strong> or send "Please Call Me" to <strong>079 835 7179</strong>.
+              <strong>Legal Aid South Africa:</strong> If you need representation for contested final hearings, use the in-app contacts: {" "}
+              <button
+                type="button"
+                onClick={() => onOpenLifeline?.("0800110110", "Legal Aid South Africa — Toll-Free")}
+                className="font-bold underline text-sky-300"
+              >
+                0800 110 110
+              </button>{" "}
+              or {" "}
+              <button
+                type="button"
+                onClick={() => onOpenLifeline?.("0798357179", "Legal Aid South Africa — Please Call Me")}
+                className="font-bold underline text-sky-300"
+              >
+                Please Call Me: 079 835 7179
+              </button>.
             </span>
           </div>
         </div>

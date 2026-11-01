@@ -11,14 +11,13 @@ import {
 import { dispatchServerSos } from "../services/supabase";
 import {
   getUatProfile,
+  loadUatProfile,
   saveUatProfile,
-  setUatMode,
   UatProfile,
 } from "../services/uatProfileService";
 import { Form2CourtRecordViewerModal, CourtIncidentRecord } from "./Form2CourtRecordViewerModal";
 import {
   getIncidentsDecrypted,
-  DEFAULT_INITIAL_INCIDENT,
 } from "../services/encryptedVaultDb";
 import {
   VehicleJourneyDetails,
@@ -50,14 +49,13 @@ import { TccCentresTab } from "./safehaven/TccCentresTab";
 import { EvidenceVaultTab } from "./safehaven/EvidenceVaultTab";
 import { SafetyPlanTab } from "./safehaven/SafetyPlanTab";
 import { UatFeedbackTab } from "./safehaven/UatFeedbackTab";
+import { SurvivorSetupModal, SurvivorSetupSection } from "./SurvivorSetupModal";
 
 interface Props {
   onPanicLock: () => void;
   onOpenGuardianTracker?: () => void;
   initialTab?: "sos" | "tcc" | "vault" | "plan" | "feedback";
 }
-
-export const ONBOARDING_STORAGE_KEY = "pcalc_survivor_onboarded";
 
 export const SafeHavenDashboard: React.FC<Props> = ({
   onPanicLock,
@@ -87,33 +85,25 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     showToast(mapped, sanitized.title, sanitized.message);
   };
 
-  const [isOnboarded, setIsOnboarded] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    if (typeof process !== "undefined" && process.env?.NODE_ENV === "test") return true;
-    return localStorage.getItem(ONBOARDING_STORAGE_KEY) === "true";
-  });
-
   const [activeTab, setActiveTab] = useState<"sos" | "tcc" | "vault" | "plan" | "feedback">(() => {
     if (initialTab) return initialTab;
     if (typeof process !== "undefined" && process.env?.NODE_ENV === "test") {
       return "sos";
     }
-    if (typeof window !== "undefined" && localStorage.getItem(ONBOARDING_STORAGE_KEY) !== "true") {
-      return "plan";
-    }
-    return "sos";
+    return "plan";
   });
 
   // UAT and User Profile State
   const [uatProfile, setUatProfileState] = useState<UatProfile>(getUatProfile);
   const [isUatMode, setIsUatMode] = useState<boolean>(() => getUatProfile().isUatMode);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [setupSection, setSetupSection] = useState<SurvivorSetupSection>("profile");
+  const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [simulatedDispatchPayload, setSimulatedDispatchPayload] = useState<any>(null);
 
   // Vault and Incidents State
   const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
-  const [recordedIncidents, setRecordedIncidents] = useState<CourtIncidentRecord[]>([
-    DEFAULT_INITIAL_INCIDENT,
-  ]);
+  const [recordedIncidents, setRecordedIncidents] = useState<CourtIncidentRecord[]>([]);
 
   // SOS Beacon State
   const [isArmed, setIsArmed] = useState(false);
@@ -258,13 +248,21 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     }
   };
 
-  const handleToggleUat = () => {
+  const handleToggleUat = async () => {
     const nextMode = !isUatMode;
-    setIsUatMode(nextMode);
-    setUatMode(nextMode);
     const updated = { ...uatProfile, isUatMode: nextMode };
     setUatProfileState(updated);
-    saveUatProfile(updated);
+    setIsUatMode(nextMode);
+    try {
+      const saved = await saveUatProfile(updated);
+      setUatProfileState(saved);
+      setIsUatMode(saved.isUatMode);
+    } catch (error) {
+      setUatProfileState(uatProfile);
+      setIsUatMode(isUatMode);
+      showToast("failed", "Unable to Change Mode", error instanceof Error ? error.message : "Profile could not be saved.");
+      return;
+    }
     showToast(
       "info",
       nextMode ? "UAT Mode Active" : "Live Mode Armed",
@@ -274,9 +272,10 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     );
   };
 
-  const handleUpdateProfile = (updated: UatProfile) => {
-    setUatProfileState(updated);
-    saveUatProfile(updated);
+  const handleUpdateProfile = async (updated: UatProfile) => {
+    const saved = await saveUatProfile(updated);
+    setUatProfileState(saved);
+    setIsUatMode(saved.isUatMode);
   };
 
   // SOS Trigger & Countdown
@@ -300,7 +299,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
       const payload = {
         simulated: true,
         timestamp: new Date().toLocaleTimeString("en-ZA"),
-        guardiansNotified: uatProfile.contacts.length || 2,
+        guardiansNotified: uatProfile.contacts.length,
         gps: liveGps ? { lat: liveGps.lat, lng: liveGps.lng } : null,
       };
       setSimulatedDispatchPayload(payload);
@@ -331,16 +330,9 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     }
   };
 
-  const handleCompleteOnboarding = () => {
-    try {
-      localStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
-    } catch {
-      // Ignored
-    }
-    setIsOnboarded(true);
-    setActiveTab("sos");
-    triggerTactileHapticPulse(40);
-    showToast("success", "Defense Network Active", "First-time safety setup complete.");
+  const openSetup = (section: SurvivorSetupSection) => {
+    setSetupSection(section);
+    setIsSetupOpen(true);
   };
 
   // Journey Timer
@@ -356,6 +348,37 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     }, 1000);
     return () => clearInterval(interval);
   }, [activeJourney]);
+
+  useEffect(() => {
+    if (typeof process !== "undefined" && process.env?.NODE_ENV === "test") {
+      setIsProfileLoading(false);
+      return;
+    }
+    let active = true;
+    loadUatProfile()
+      .then((loaded) => {
+        if (!active) return;
+        setUatProfileState(loaded);
+        setIsUatMode(loaded.isUatMode);
+        if (!loaded.onboardingCompleted) {
+          setSetupSection(loaded.personal.fullName ? (loaded.contacts.length ? "permissions" : "ice") : "profile");
+          setIsSetupOpen(true);
+        } else {
+          setActiveTab("sos");
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          showToast("failed", "Profile Connection Unavailable", error instanceof Error ? error.message : "Unable to load survivor profile.");
+        }
+      })
+      .finally(() => {
+        if (active) setIsProfileLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     refreshLiveLocation();
@@ -400,37 +423,44 @@ export const SafeHavenDashboard: React.FC<Props> = ({
       {/* Main Tab Content */}
       <main className="p-4 flex-1 overflow-y-auto space-y-4">
         {/* First-Time Safety Setup Wizard Banner */}
-        {!isOnboarded && (
+        {!isProfileLoading && !uatProfile.onboardingCompleted && (
           <div className="bg-gradient-to-br from-amber-950/80 via-slate-900 to-slate-900 border-2 border-amber-500/60 rounded-2xl p-4 shadow-xl space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-amber-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                 FIRST-TIME SURVIVOR SAFETY SETUP
               </span>
-              <span className="text-[10px] font-mono text-slate-400">Step 1 of 3</span>
+              <span className="text-[10px] font-mono text-slate-400">3 required steps</span>
             </div>
             <div>
               <h2 className="text-sm font-bold text-white">
                 Configure Your Emergency Defense Network
               </h2>
               <p className="text-xs text-slate-300 leading-relaxed mt-1">
-                Before an emergency occurs, complete your legal particulars, register your 5 trusted ICE guardians, and enable app permissions for instant live GPS dispatch.
+                Save a survivor profile, register at least one trusted ICE contact, and review device permissions before relying on emergency dispatch.
               </p>
             </div>
-            <div className="flex gap-2 pt-1">
+            <div className="grid grid-cols-2 gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => setActiveTab("plan")}
-                className="flex-1 py-2 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
+                onClick={() => openSetup("profile")}
+                className="py-2 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-md"
               >
-                <span>Edit Profile & Contacts</span>
+                Edit profile
               </button>
               <button
                 type="button"
-                onClick={handleCompleteOnboarding}
+                onClick={() => openSetup("ice")}
                 className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs rounded-xl border border-slate-700 transition-colors"
               >
-                <span>Complete Setup</span>
+                ICE contacts
+              </button>
+              <button
+                type="button"
+                onClick={() => openSetup(uatProfile.personal.fullName ? (uatProfile.contacts.length ? "permissions" : "ice") : "profile")}
+                className="col-span-2 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors"
+              >
+                Continue 3-step setup
               </button>
             </div>
           </div>
@@ -495,6 +525,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
             }}
             sosStatus={sosStatus}
             simulatedDispatchPayload={simulatedDispatchPayload}
+            iceContacts={uatProfile.contacts}
             onOpenGuardianTracker={onOpenGuardianTracker}
             onOpenUssdModal={(dialString, title) => {
               setActiveUssdCode(dialString);
@@ -542,6 +573,13 @@ export const SafeHavenDashboard: React.FC<Props> = ({
             onRefreshLocation={refreshLiveLocation}
             onRequestStorage={requestStoragePersistence}
             onRequestNotifications={requestNotificationPermission}
+            onEditProfile={() => openSetup("profile")}
+            onManageIceContacts={() => openSetup("ice")}
+            onOpenLifeline={(dialString, title) => {
+              setActiveUssdCode(dialString);
+              setActiveUssdTitle(title);
+              setUssdModalOpen(true);
+            }}
             onShowToast={handleShowToast}
           />
         )}
@@ -642,6 +680,26 @@ export const SafeHavenDashboard: React.FC<Props> = ({
           serviceTitle={activeUssdTitle}
         />
       </main>
+
+      <SurvivorSetupModal
+        isOpen={isSetupOpen}
+        section={setupSection}
+        isFirstTime={!uatProfile.onboardingCompleted}
+        profile={uatProfile}
+        onClose={() => setIsSetupOpen(false)}
+        onSave={async (updated) => {
+          await handleUpdateProfile(updated);
+          if (updated.onboardingCompleted) {
+            setActiveTab("sos");
+            triggerTactileHapticPulse(40);
+            showToast("success", "Defense Network Active", "First-time safety setup complete.");
+          }
+        }}
+        permissionsStatus={permissionsStatus}
+        onRequestLocation={refreshLiveLocation}
+        onRequestStorage={requestStoragePersistence}
+        onRequestNotifications={requestNotificationPermission}
+      />
 
       {/* Bottom Navigation */}
       <nav className="bg-slate-900 border-t border-slate-800 p-2 pb-safe flex justify-around sticky bottom-0">

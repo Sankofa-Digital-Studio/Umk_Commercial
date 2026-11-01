@@ -22,6 +22,19 @@ export interface DisguiseMetadata {
 export const PUBLIC_FACING_DOMAIN = 'ishekomberera.vercel.app';
 export const DISGUISE_STORAGE_KEY = 'umkhuseli_active_disguise';
 export const DISGUISE_EVENT_NAME = 'umkhuseli_disguise_change';
+export const DISGUISE_SEQUENCE_MAP: Readonly<Record<string, DisguiseType>> = {
+  '8421': 'MUNICIPAL_PREPAID',
+  '8422': 'MUSIC_PLAYER',
+  '8423': 'DAILY_DEVOTIONAL',
+  '8424': 'ANDROID_LAUNCHER',
+};
+
+const FACE_QUERY_MAP: Readonly<Record<string, DisguiseType>> = {
+  '1': 'MUNICIPAL_PREPAID',
+  '2': 'MUSIC_PLAYER',
+  '3': 'DAILY_DEVOTIONAL',
+  '4': 'ANDROID_LAUNCHER',
+};
 
 export const DISGUISE_CATALOG: Record<DisguiseType, DisguiseMetadata> = {
   MUNICIPAL_PREPAID: {
@@ -75,6 +88,11 @@ const VALID_DISGUISES: ReadonlySet<string> = new Set([
 export function getActiveDisguise(): DisguiseType {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
+      const urlDisguise = getDisguiseFromUrl(window.location.href);
+      if (urlDisguise) {
+        window.localStorage.setItem(DISGUISE_STORAGE_KEY, urlDisguise);
+        return urlDisguise;
+      }
       const stored = window.localStorage.getItem(DISGUISE_STORAGE_KEY);
       if (stored && VALID_DISGUISES.has(stored)) {
         return stored as DisguiseType;
@@ -84,6 +102,34 @@ export function getActiveDisguise(): DisguiseType {
     }
   }
   return 'MUNICIPAL_PREPAID';
+}
+
+/** Resolves a covert four-digit face sequence without opening Safe Haven. */
+export function getDisguiseFromSequence(sequence: string): DisguiseType | null {
+  return DISGUISE_SEQUENCE_MAP[sequence.replace(/\D/g, '').slice(-4)] || null;
+}
+
+/** Resolves ?face=1..4 or ?face=<disguise-id> on the public Vercel origin. */
+export function getDisguiseFromUrl(url: string): DisguiseType | null {
+  try {
+    const value = new URL(url).searchParams.get('face');
+    if (!value) return null;
+    const normalized = value.trim().toUpperCase();
+    if (FACE_QUERY_MAP[normalized]) return FACE_QUERY_MAP[normalized];
+    if (VALID_DISGUISES.has(normalized)) return normalized as DisguiseType;
+  } catch {
+    // Invalid or unavailable URL.
+  }
+  return null;
+}
+
+/** Creates a stable same-origin URL for a selected public-facing facade. */
+export function getDisguiseUrl(disguise: DisguiseType): string {
+  const faceNumber = Object.entries(FACE_QUERY_MAP).find(([, id]) => id === disguise)?.[0] || '1';
+  const origin = typeof window !== 'undefined' && window.location.origin
+    ? window.location.origin
+    : `https://${PUBLIC_FACING_DOMAIN}`;
+  return `${origin}/?face=${faceNumber}`;
 }
 
 /**

@@ -7,6 +7,7 @@ import { startAudibleSiren, stopAudibleSiren, isSirenActive } from "../services/
 describe("Audible Siren Deterrent & USSD Simulation", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    localStorage.clear();
     stopAudibleSiren();
   });
 
@@ -80,7 +81,7 @@ describe("Audible Siren Deterrent & USSD Simulation", () => {
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 
-  it("handles USSD option 2 Nearest Centre discovery", () => {
+  it("asks for location before USSD option 2 claims a nearest centre", () => {
     render(
       <UssdSimulationModal
         isOpen={true}
@@ -94,7 +95,38 @@ describe("Audible Siren Deterrent & USSD Simulation", () => {
     fireEvent.change(input, { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
+    expect(screen.getByText(/Live location is not available/i)).toBeDefined();
+    expect(screen.getByText(/enable device location/i)).toBeDefined();
+    expect(screen.queryByText(/Chris Hani Baragwanath TCC/i)).toBeNull();
+  });
+
+  it("uses cached live GPS for USSD option 2 nearest-centre discovery", () => {
+    localStorage.setItem(
+      "umkhuseli_last_known_gps",
+      JSON.stringify({
+        lat: -33.9249,
+        lng: 18.4241,
+        accuracy: 12,
+        areaName: "City of Cape Town / Western Cape Metro",
+        metro: "Cape Town",
+        province: "Western Cape",
+        timestamp: Date.now(),
+      })
+    );
+
+    render(
+      <UssdSimulationModal
+        isOpen={true}
+        onClose={vi.fn()}
+        ussdCode="*134*7355#"
+        serviceTitle="TEARS Crisis USSD"
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText(/Enter 1, 2, or 3/i), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
     expect(screen.getByText(/Nearest 24\/7 Safe Haven/i)).toBeDefined();
-    expect(screen.getByText(/Chris Hani Baragwanath TCC/i)).toBeDefined();
+    expect(screen.getByText(/Victoria Hospital TCC/i)).toBeDefined();
   });
 });

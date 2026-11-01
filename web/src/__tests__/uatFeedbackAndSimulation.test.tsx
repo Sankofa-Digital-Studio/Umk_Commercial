@@ -3,7 +3,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SafeHavenDashboard } from "../components/SafeHavenDashboard";
-import { submitUatFeedback, UAT_SIMULATED_GUARDIANS } from "../services/supabase";
+import { submitUatFeedback } from "../services/supabase";
+
+vi.mock("../services/uatProfileService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/uatProfileService")>();
+  return {
+    ...actual,
+    saveUatProfile: vi.fn(async (profile) => profile),
+  };
+});
 
 describe("SafeHavenDashboard UAT Mode & In-App Feedback Suite", () => {
   beforeEach(() => {
@@ -12,13 +20,6 @@ describe("SafeHavenDashboard UAT Mode & In-App Feedback Suite", () => {
       window.localStorage.clear();
       window.localStorage.setItem("umkhuseli_onboarded_v23", "true");
     }
-  });
-
-  it("exports designated simulated UAT test guardians with non-emergency test numbers", () => {
-    expect(UAT_SIMULATED_GUARDIANS.length).toBeGreaterThanOrEqual(2);
-    expect(UAT_SIMULATED_GUARDIANS[0].mobileNumber1).toBe("+27820000001");
-    expect(UAT_SIMULATED_GUARDIANS[1].mobileNumber1).toBe("+27820000002");
-    expect(UAT_SIMULATED_GUARDIANS[0].isPrimary).toBe(true);
   });
 
   it("renders the UAT Test Mode toggle banner and toggles simulation state", () => {
@@ -63,8 +64,7 @@ describe("SafeHavenDashboard UAT Mode & In-App Feedback Suite", () => {
     );
 
     expect(screen.getByText(/SAFE SIMULATION/i)).toBeDefined();
-    expect(screen.getByText(/Sister Lerato \(\+27 82 000 0001\)/i)).toBeDefined();
-    expect(screen.getByText(/Coordinator Sipho \(\+27 82 000 0002\)/i)).toBeDefined();
+    expect(screen.getByText(/No contacts registered/i)).toBeDefined();
 
     // Click "Inspect Tracker View"
     const inspectBtn = screen.getByText(/Inspect Tracker View/i);

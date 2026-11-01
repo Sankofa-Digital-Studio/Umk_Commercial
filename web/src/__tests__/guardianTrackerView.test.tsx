@@ -38,7 +38,8 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
     expect(sapsLink).toBeInTheDocument();
     expect(sapsLink).toHaveAttribute("href", "tel:10111");
 
-    expect(screen.getByText(/(Helen Joseph|Chris Hani Baragwanath) TCC/i)).toBeInTheDocument();
+    expect(screen.getByText(/Location not shared — showing national reference map/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nearest care facility is an estimate until live coordinates are shared/i)).toBeInTheDocument();
   });
 
   it("reads live beacon telemetry from localStorage (pcalc_last_beacon) and dynamically finds nearest care facility with distance in km", () => {
@@ -191,19 +192,16 @@ describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Respo
     });
   });
 
-  it("resolves coordinates from survivor profile address (Flamingo Park, Welkom) to Bongani Hospital TCC without hardcoded Johannesburg fallback", () => {
+  it("resolves live Welkom beacon coordinates to Bongani Hospital TCC without a hardcoded Johannesburg fallback", () => {
     localStorage.setItem(
-      "pcalc_uat_profile",
+      "pcalc_last_beacon",
       JSON.stringify({
-        userId: "test-user-fs",
-        isUatMode: false,
-        contacts: [],
-        personal: {
-          fullName: "Ntula Otto Thoso",
-          saIdNumber: "9410295183083",
-          address: "Flamingo Park, Welkom",
-        },
-        socials: { alertEmail: "", twitterHandle: "", instagramHandle: "", facebookProfile: "" },
+        id: "welkom-live-beacon",
+        latitude: -27.9471,
+        longitude: 26.7237,
+        accuracyMeters: 12,
+        areaName: "Flamingo Park, Welkom",
+        batteryPercentage: 72,
       })
     );
 

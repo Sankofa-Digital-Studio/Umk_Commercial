@@ -60,7 +60,7 @@ export const GuardianTrackerView: React.FC<Props> = ({
     let bat: number | undefined;
     let tokenVal = beaconToken;
     let dispatchedAt = new Date(Date.now() - 4 * 60 * 1000).toISOString();
-    let areaName = "Johannesburg Central / Gauteng";
+    let areaName = "Location not shared";
     let isCharging = false;
     let hasExplicitBeaconCoordinates = false;
 
@@ -118,9 +118,9 @@ export const GuardianTrackerView: React.FC<Props> = ({
       /* ignore */
     }
 
-    let resolvedLat = -26.2041;
-    let resolvedLng = 28.0473;
-    let resolvedArea = "Johannesburg Central / Gauteng";
+    let resolvedLat = -28.4793;
+    let resolvedLng = 24.6727;
+    let resolvedArea = "Location not shared — showing national reference map";
 
     if (cachedLiveGps) {
       resolvedLat = cachedLiveGps.lat;
@@ -136,7 +136,9 @@ export const GuardianTrackerView: React.FC<Props> = ({
     const finalLng = lng !== undefined && !isNaN(lng) ? lng : resolvedLng;
     const finalAcc = acc !== undefined && !isNaN(acc) ? acc : (cachedLiveGps?.accuracy ?? 14);
     const finalBat = bat !== undefined && !isNaN(bat) ? bat : 78;
-    const finalArea = hasExplicitBeaconCoordinates && areaName ? areaName : (cachedLiveGps?.areaName || (profileAreaCoords ? profileAreaCoords.areaName : areaName));
+    const finalArea = hasExplicitBeaconCoordinates && areaName
+      ? areaName
+      : (cachedLiveGps?.areaName || (profileAreaCoords ? profileAreaCoords.areaName : resolvedArea));
 
     return {
       id: tokenVal,
@@ -147,7 +149,8 @@ export const GuardianTrackerView: React.FC<Props> = ({
       areaName: finalArea,
       batteryPercentage: finalBat,
       isCharging,
-      hasExplicitBeaconCoordinates
+      hasExplicitBeaconCoordinates,
+      hasUsableLocation: hasExplicitBeaconCoordinates || Boolean(cachedLiveGps || profileAreaCoords)
     };
   }, [beaconToken]);
 
@@ -512,28 +515,37 @@ export const GuardianTrackerView: React.FC<Props> = ({
             <span className="text-[10px] bg-rose-700 px-2 py-0.5 rounded font-mono">Direct</span>
           </a>
 
-          {/* Nearest Thuthuzela Care Centre */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
-            <div className="pr-2">
-              <span className="text-[10px] uppercase font-bold text-amber-400 block">
-                Nearest Care Facility ({nearestTcc.province})
-              </span>
-              <h4 className="text-xs font-bold text-white">{nearestTcc.name}</h4>
-              <p className="text-[10px] text-slate-400">
-                {nearestTcc.hospitalOrLocation}
-                {nearestTcc.distanceKm !== undefined && (
-                  <span> • {nearestTcc.distanceKm.toFixed(1)} km away</span>
-                )}
+          {/* Nearest Thuthuzela Care Centre is only claimed after a real location is available. */}
+          {initialBeacon.hasUsableLocation || isLiveDeviceGps ? (
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
+              <div className="pr-2">
+                <span className="text-[10px] uppercase font-bold text-amber-400 block">
+                  Nearest Care Facility ({nearestTcc.province})
+                </span>
+                <h4 className="text-xs font-bold text-white">{nearestTcc.name}</h4>
+                <p className="text-[10px] text-slate-400">
+                  {nearestTcc.hospitalOrLocation}
+                  {nearestTcc.distanceKm !== undefined && (
+                    <span> • {nearestTcc.distanceKm.toFixed(1)} km away</span>
+                  )}
+                </p>
+              </div>
+              <a
+                href={`tel:${nearestTcc.contactNumber}`}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold p-2.5 rounded-lg flex items-center justify-center shrink-0"
+                title="Call Care Centre"
+              >
+                <PhoneCall className="w-4 h-4" />
+              </a>
+            </div>
+          ) : (
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+              <span className="text-[10px] uppercase font-bold text-amber-400 block">Care facility lookup pending</span>
+              <p className="text-xs text-slate-300 mt-1">
+                Nearest care facility is an estimate until live coordinates are shared. Refresh device location to resolve it safely.
               </p>
             </div>
-            <a
-              href={`tel:${nearestTcc.contactNumber}`}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold p-2.5 rounded-lg flex items-center justify-center shrink-0"
-              title="Call Care Centre"
-            >
-              <PhoneCall className="w-4 h-4" />
-            </a>
-          </div>
+          )}
         </div>
 
         {/* Responder Acknowledgment */}

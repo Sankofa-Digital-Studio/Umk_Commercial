@@ -19,6 +19,7 @@ import { NATIONAL_LIFELINES } from "../../data/saSafetyData";
 import { VehicleJourneyDetails } from "../../services/journeyTrackerService";
 import { startAudibleSiren, stopAudibleSiren, isSirenActive } from "../../services/audibleSirenService";
 import { getCachedLiveLocation } from "../../services/liveLocationService";
+import { IceContact } from "../../services/uatProfileService";
 
 interface SosEmergencyTabProps {
   activeJourney: VehicleJourneyDetails | null;
@@ -33,6 +34,7 @@ interface SosEmergencyTabProps {
   onCancelArmedSos: () => void;
   sosStatus: string | null;
   simulatedDispatchPayload: any;
+  iceContacts: IceContact[];
   onOpenGuardianTracker?: () => void;
   onOpenUssdModal: (dialString: string, title: string) => void;
   onShowToast?: (type: "success" | "error" | "warning" | "info", title: string, message: string) => void;
@@ -51,6 +53,7 @@ export const SosEmergencyTab: React.FC<SosEmergencyTabProps> = ({
   onCancelArmedSos,
   sosStatus,
   simulatedDispatchPayload,
+  iceContacts,
   onOpenGuardianTracker,
   onOpenUssdModal,
   onShowToast,
@@ -234,12 +237,17 @@ export const SosEmergencyTab: React.FC<SosEmergencyTabProps> = ({
             </div>
 
             <p className="text-slate-300 text-[11px]">
-              Simulated distress beacon delivered to <strong className="text-white">2 test guardians</strong> with live GPS coordinates. No emergency services were alerted.
+              Simulated distress beacon prepared for <strong className="text-white">{iceContacts.length} registered ICE contact{iceContacts.length === 1 ? "" : "s"}</strong> with live GPS coordinates. No emergency services were alerted.
             </p>
 
             <div className="bg-black/60 p-2.5 rounded-lg font-mono text-[11px] text-slate-300 space-y-1 border border-slate-800">
-              <div><strong>ICE 1:</strong> Sister Lerato (+27 82 000 0001)</div>
-              <div><strong>ICE 2:</strong> Coordinator Sipho (+27 82 000 0002)</div>
+              {iceContacts.length === 0 ? (
+                <div><strong>ICE:</strong> No contacts registered. Complete safety setup before live use.</div>
+              ) : (
+                iceContacts.map((contact, index) => (
+                  <div key={contact.id}><strong>ICE {index + 1}:</strong> {contact.name} ({contact.phone})</div>
+                ))
+              )}
               <div>
                 <strong>GPS:</strong>{" "}
                 {simulatedDispatchPayload.gps
@@ -416,11 +424,7 @@ export const SosEmergencyTab: React.FC<SosEmergencyTabProps> = ({
               <div
                 key={l.id}
                 onClick={() => {
-                  if (l.type === "USSD_FREE") {
-                    onOpenUssdModal(l.dialString, l.title);
-                  } else {
-                    window.location.href = `tel:${l.dialString.replace("#", "%23")}`;
-                  }
+                  onOpenUssdModal(l.dialString, l.title);
                 }}
                 className="p-3 bg-slate-950 rounded-xl border border-slate-800 hover:border-slate-700 flex items-center justify-between cursor-pointer transition-colors"
               >
@@ -442,7 +446,7 @@ export const SosEmergencyTab: React.FC<SosEmergencyTabProps> = ({
                   className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1"
                 >
                   <PhoneCall className="w-3 h-3 text-emerald-400" />
-                  <span>Dial</span>
+                  <span>{l.type === "VOICE_CALL" ? "Open" : "Engage"}</span>
                 </button>
               </div>
             ))}

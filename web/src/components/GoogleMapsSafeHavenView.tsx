@@ -128,16 +128,16 @@ export const GoogleMapsSafeHavenView: React.FC<Props> = ({
         THUTHUZELA_CENTERS[0]
       );
     }
-    return THUTHUZELA_CENTERS[0];
+    return null;
   });
 
   // Offline Scope Selection State (prepopulated from user's live location)
-  const [scopeType, setScopeType] = useState<ScopeType>("city");
+  const [scopeType, setScopeType] = useState<ScopeType>(initialLiveLocation ? "city" : "country");
   const [selectedCity, setSelectedCity] = useState<string>(
-    initialLiveLocation ? initialLiveLocation.metro : "Johannesburg"
+    initialLiveLocation ? initialLiveLocation.metro : ""
   );
   const [selectedProvince, setSelectedProvince] = useState<string>(
-    initialLiveLocation ? initialLiveLocation.province : "Gauteng"
+    initialLiveLocation ? initialLiveLocation.province : ""
   );
 
   // Offline Cache & Expiry State

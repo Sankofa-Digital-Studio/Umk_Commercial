@@ -53,6 +53,17 @@ describe('SafeHavenDashboard Component', () => {
       expect(screen.getByText('Childline South Africa')).toBeInTheDocument();
     });
 
+    it('opens toll-free lifelines inside Safe Haven before launching the phone dialler', () => {
+      render(<SafeHavenDashboard onPanicLock={mockOnPanicLock} />);
+
+      fireEvent.click(screen.getByText('National GBV Command Centre').closest('div')!);
+
+      expect(screen.getByText(/In-app lifeline contact/i)).toBeInTheDocument();
+      expect(screen.getAllByText('0800428428').length).toBeGreaterThan(0);
+      expect(screen.getByText(/Safe Haven Active/i)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Open phone dialler/i })).toHaveAttribute('href', 'tel:0800428428');
+    });
+
     it('arms SOS and allows canceling before countdown finishes', () => {
       vi.useFakeTimers();
       render(<SafeHavenDashboard onPanicLock={mockOnPanicLock} />);

@@ -12,6 +12,9 @@ import { executeSilentDuressSos } from "./services/emergencySosService";
 import { clearVaultMemory } from "./services/encryptedVaultDb";
 import {
   getActiveDisguise,
+  getDisguiseFromSequence,
+  getDisguiseUrl,
+  setActiveDisguise,
   DISGUISE_EVENT_NAME,
   DisguiseType,
 } from "./services/disguiseManager";
@@ -38,6 +41,8 @@ export const App: React.FC = () => {
   const [activeDisguise, setActiveDisguiseState] = useState<DisguiseType>(getActiveDisguise);
   const [activeBeaconToken, setActiveBeaconToken] = useState<string>("beacon_72h_active");
   const [vaultSessionKey, setVaultSessionKey] = useState<number>(0);
+  const facadeSequenceRef = useRef<string>("");
+  const facadeSequenceTimerRef = useRef<number | null>(null);
 
   // Safety briefing overlay state (blocking loader on landing showing distress codes)
   const [showBriefing, setShowBriefing] = useState<boolean>(() => {
@@ -68,14 +73,7 @@ export const App: React.FC = () => {
       const action = params.get("action");
       if (action === "distress_hotline") {
         window.history.replaceState({}, document.title, window.location.pathname);
-        const uat =
-          localStorage.getItem("pcalc_uat_active") === "true" ||
-          localStorage.getItem("umkhuseli_uat_mode_active") === "true";
-        if (uat) {
-          alert("⚡ [UAT Simulation Active]\nCovert distress hotline initiated.\nSimulated dispatch broadcast to 5 ICE contacts. Live call suppressed.");
-        } else {
-          window.location.href = "tel:0800428428";
-        }
+        setMode("SAFE_HAVEN");
       } else if (action === "covert_sos") {
         window.history.replaceState({}, document.title, window.location.pathname);
         triggerTactileHapticPulse(100);
@@ -93,13 +91,56 @@ export const App: React.FC = () => {
   useEffect(() => {
     const handleDisguiseChange = (e: Event) => {
       const customEvent = e as CustomEvent<DisguiseType>;
-      setActiveDisguiseState(customEvent.detail || getActiveDisguise());
+      const nextDisguise = customEvent.detail || getActiveDisguise();
+      setActiveDisguiseState(nextDisguise);
+      if (typeof window !== "undefined" && mode === "DECOY_CALCULATOR") {
+        window.history.replaceState({}, document.title, getDisguiseUrl(nextDisguise));
+      }
     };
     window.addEventListener(DISGUISE_EVENT_NAME, handleDisguiseChange);
     return () => {
       window.removeEventListener(DISGUISE_EVENT_NAME, handleDisguiseChange);
     };
-  }, []);
+  }, [mode]);
+
+  // Universal facade routing: 8421 PowerCalc, 8422 Music, 8423 Devotional, 8424 Launcher.
+  // The sequence can be entered in any decoy input or typed while no control has focus.
+  useEffect(() => {
+    if (mode !== "DECOY_CALCULATOR") return;
+
+    const activateSequence = (sequence: string) => {
+      const disguise = getDisguiseFromSequence(sequence);
+      if (!disguise) return false;
+      setActiveDisguise(disguise);
+      facadeSequenceRef.current = "";
+      return true;
+    };
+
+    const handleInput = (event: Event) => {
+      const target = event.target as HTMLInputElement | HTMLTextAreaElement | null;
+      if (target && typeof target.value === "string") activateSequence(target.value.trim());
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (!/^\d$/.test(event.key)) return;
+      facadeSequenceRef.current = `${facadeSequenceRef.current}${event.key}`.slice(-4);
+      if (facadeSequenceTimerRef.current) window.clearTimeout(facadeSequenceTimerRef.current);
+      facadeSequenceTimerRef.current = window.setTimeout(() => {
+        facadeSequenceRef.current = "";
+      }, 1800);
+      activateSequence(facadeSequenceRef.current);
+    };
+
+    document.addEventListener("input", handleInput);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("input", handleInput);
+      window.removeEventListener("keydown", handleKeyDown);
+      if (facadeSequenceTimerRef.current) window.clearTimeout(facadeSequenceTimerRef.current);
+    };
+  }, [mode]);
 
   /**
    * Feature 5: 0ms Panic Camouflage Engine

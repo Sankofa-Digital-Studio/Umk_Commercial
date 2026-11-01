@@ -31,11 +31,13 @@ describe("GoogleMapsSafeHavenView Component", () => {
     expect(screen.getByText("Map Cached")).toBeDefined();
   });
 
-  // Test 3: Preserved baseline test
-  it("renders selected Thuthuzela Care Centre with address, direct call, and directions links", () => {
+  // Test 3: No static city/TCC is selected until GPS or an explicit user choice resolves it.
+  it("renders a user-selected Thuthuzela Care Centre with address, direct call, and directions links", () => {
     render(<GoogleMapsSafeHavenView />);
 
     const firstCenter = THUTHUZELA_CENTERS[0];
+    expect(screen.queryByText(firstCenter.name)).toBeNull();
+    fireEvent.click(screen.getByTestId(`osm-pin-${firstCenter.id}`));
     expect(screen.getByText(firstCenter.name)).toBeDefined();
     expect(screen.getByText(firstCenter.address)).toBeDefined();
     expect(screen.getByRole("link", { name: new RegExp(`Call TCC \\(${firstCenter.contactNumber}\\)`) })).toBeDefined();
@@ -118,7 +120,8 @@ describe("GoogleMapsSafeHavenView Component", () => {
   it("supports scope selection across City / Metro, Province, and Entire Country", () => {
     render(<GoogleMapsSafeHavenView />);
 
-    // Default scope is City / Metro, select Cape Town
+    // Without a GPS fix the safe default is national; the user can explicitly choose a metro.
+    fireEvent.click(screen.getByRole("button", { name: /City \/ Metro/i }));
     const capeTownBtn = screen.getByTestId("scope-city-Cape Town");
     fireEvent.click(capeTownBtn);
 
@@ -157,7 +160,7 @@ describe("GoogleMapsSafeHavenView Component", () => {
 
     // Verify immediate alert feedback
     expect(
-      screen.getByText(/Offline map for City \/ Metro \(Johannesburg\) downloaded\. Expiry Date: .* Automatic reminder alerts armed\./i)
+      screen.getByText(/Offline map for Entire Country \(South Africa - National Grid & All 9 Provinces\) downloaded\. Expiry Date: .* Automatic reminder alerts armed\./i)
     ).toBeDefined();
 
     // Verify Offline Map Status Card

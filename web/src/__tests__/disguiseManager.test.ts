@@ -5,6 +5,9 @@ import {
   getDisguiseMetadata,
   getAllDisguises,
   resetDisguise,
+  getDisguiseFromSequence,
+  getDisguiseFromUrl,
+  getDisguiseUrl,
   DISGUISE_STORAGE_KEY,
   DISGUISE_EVENT_NAME,
 } from '../services/disguiseManager';
@@ -97,6 +100,20 @@ describe('Chameleon Disguise Architecture - Disguise Manager', () => {
       'DAILY_DEVOTIONAL',
       'ANDROID_LAUNCHER',
     ]);
+  });
+
+  it('maps the 8421-8424 numeric sequences to faces 1-4', () => {
+    expect(getDisguiseFromSequence('8421')).toBe('MUNICIPAL_PREPAID');
+    expect(getDisguiseFromSequence('8422')).toBe('MUSIC_PLAYER');
+    expect(getDisguiseFromSequence('8423')).toBe('DAILY_DEVOTIONAL');
+    expect(getDisguiseFromSequence('8424')).toBe('ANDROID_LAUNCHER');
+    expect(getDisguiseFromSequence('8426')).toBeNull();
+  });
+
+  it('resolves and generates stable same-origin face URLs', () => {
+    expect(getDisguiseFromUrl('https://ishekomberera.vercel.app/?face=3')).toBe('DAILY_DEVOTIONAL');
+    expect(getDisguiseFromUrl('https://ishekomberera.vercel.app/?face=ANDROID_LAUNCHER')).toBe('ANDROID_LAUNCHER');
+    expect(getDisguiseUrl('MUSIC_PLAYER')).toContain('?face=2');
   });
 
   it('resets disguise state back to MUNICIPAL_PREPAID', () => {

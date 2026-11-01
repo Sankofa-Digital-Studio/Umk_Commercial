@@ -55,21 +55,6 @@ const DB_VERSION = 1;
 const FALLBACK_STORAGE_KEY = "pcalc_cache_v2";
 const LEGACY_STORAGE_KEY = "umkhuseli_recorded_incidents";
 
-export const DEFAULT_INITIAL_INCIDENT: CourtIncidentRecord = {
-  id: "inc-1",
-  type: "Verbal & Threat of Harm",
-  severity: 3,
-  perpetrator: "Partner",
-  location: "Shared residence (living room)",
-  date: "24 Oct 2026, 08:49",
-  statement:
-    "The perpetrator threatened physical harm and attempted to confiscate communications device. Demanded financial access under duress.",
-  injuriesOrImpact: "Severe psychological trauma, emotional distress",
-  witnesses: "Family member in adjacent room",
-  isEncrypted: true,
-  sha256Checksum: "9b4f738a1099238e8bc2140d39e3845b5930219c8f00129ad89bcf21798e1042",
-};
-
 // In-memory cache of decrypted records for active session
 let inMemoryDecryptedCache: CourtIncidentRecord[] | null = null;
 // In-memory fallback if IndexedDB is not supported
@@ -328,15 +313,9 @@ export async function getIncidentsDecrypted(pin?: string): Promise<CourtIncident
   await migrateLegacyIncidents(pin);
 
   // 2. Fetch all encrypted records
-  let rawRecords = await getAllRawEncryptedRecords();
+  const rawRecords = await getAllRawEncryptedRecords();
 
-  // 3. If storage is empty, initialize default record encrypted
-  if (rawRecords.length === 0) {
-    await saveIncidentEncrypted(DEFAULT_INITIAL_INCIDENT, pin);
-    rawRecords = await getAllRawEncryptedRecords();
-  }
-
-  // 4. Decrypt all records
+  // 3. Decrypt only survivor-created records. Empty storage remains empty.
   const decryptedList: CourtIncidentRecord[] = [];
   for (const raw of rawRecords) {
     try {
