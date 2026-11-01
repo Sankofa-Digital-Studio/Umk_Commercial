@@ -98,7 +98,7 @@ export const UtilityCheatSheetModal: React.FC<UtilityCheatSheetModalProps> = ({
               Installs as <strong className="text-white">PowerCalc SA</strong> — no Play Store record. Leaves your phone clean and unsuspicious.
             </p>
             <a
-              href="/downloads/Umkhuseli_Safe_latest.apk"
+              href="/downloads/PowerCalc_SA_latest.apk"
               download="PowerCalc_SA_latest.apk"
               onClick={handleDownloadApk}
               className="flex items-center justify-center gap-2 w-full py-2.5 bg-sky-700 hover:bg-sky-600 text-white font-bold rounded-xl transition-all shadow-lg shadow-sky-700/20 active:scale-95 cursor-pointer"
@@ -111,7 +111,7 @@ export const UtilityCheatSheetModal: React.FC<UtilityCheatSheetModalProps> = ({
               ) : (
                 <>
                   <Download className="w-4 h-4" aria-hidden="true" />
-                  <span>Download Android APK (PowerCalc SA v2.5.0)</span>
+                  <span>Download Android APK (PowerCalc SA v2.6.2)</span>
                 </>
               )}
             </a>

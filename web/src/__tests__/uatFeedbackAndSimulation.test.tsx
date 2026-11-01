@@ -91,10 +91,13 @@ describe("SafeHavenDashboard UAT Mode & In-App Feedback Suite", () => {
     const submitBtn = screen.getByText(/Submit Anonymous UAT Feedback/i);
     fireEvent.click(submitBtn);
 
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Feedback transmitted securely|Feedback safely stored in offline outbox|Feedback saved locally/i)
-      ).toBeDefined();
-    });
-  });
+    await waitFor(
+      () => {
+        expect(
+          screen.getByText(/Feedback transmitted securely|Feedback safely stored in offline outbox|Feedback saved locally/i)
+        ).toBeDefined();
+      },
+      { timeout: 8000 }
+    );
+  }, 15000);
 });

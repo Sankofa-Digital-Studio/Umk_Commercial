@@ -15,9 +15,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt', 'bolt.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'Prepaid Utility Token Portal',
-        short_name: 'Prepaid Portal',
-        description: 'Municipal Electricity & Water Token Management Portal',
+        name: 'PowerCalc SA: Prepaid Utility Portal',
+        short_name: 'PowerCalc SA',
+        description: 'South African Municipal Electricity & Water Token Management System',
         theme_color: '#0F172A',
         background_color: '#0F172A',
         display: 'standalone',
@@ -26,12 +26,14 @@ export default defineConfig({
           {
             src: '/pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           },
           {
             src: '/pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           },
           {
             src: '/apple-touch-icon.png',
@@ -41,17 +43,17 @@ export default defineConfig({
         ],
         shortcuts: [
           {
-            name: 'Emergency Technical Helpline',
-            short_name: 'Helpline',
-            description: 'Direct priority municipal emergency technical dispatch line',
-            url: '/?action=distress_hotline',
+            name: 'Municipal Meter Diagnostic',
+            short_name: 'Diagnostic',
+            description: 'Execute automated prepaid meter connectivity and verification check',
+            url: '/?action=covert_sos',
             icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }]
           },
           {
-            name: 'Emergency Meter Diagnostic',
-            short_name: 'Diagnostic',
-            description: 'Execute automated prepaid meter connectivity & verification check',
-            url: '/?action=covert_sos',
+            name: 'Municipal Technical Support',
+            short_name: 'Support',
+            description: 'Priority municipal technical service and query dispatch',
+            url: '/?action=distress_hotline',
             icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }]
           }
         ]

@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Sankofa Safe"
+rootProject.name = "PowerCalc SA"
 
 include(":app")
