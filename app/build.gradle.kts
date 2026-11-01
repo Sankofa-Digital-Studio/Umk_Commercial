@@ -16,8 +16,8 @@ android {
     applicationId = "com.aistudio.sankofa.safe"
     minSdk = 24
     targetSdk = 36
-    versionCode = 5
-    versionName = "2.5.0"
+    versionCode = 6
+    versionName = "2.6.2"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

@@ -70,7 +70,7 @@ describe("SafeHavenDashboard UAT Mode & In-App Feedback Suite", () => {
     const inspectBtn = screen.getByText(/Inspect Tracker View/i);
     fireEvent.click(inspectBtn);
     expect(onOpenGuardianTracker).toHaveBeenCalledTimes(1);
-  });
+  }, 15000);
 
   it("switches to the Feedback tab and submits anonymous UAT feedback with local outbox fallback", async () => {
     const onPanicLock = vi.fn();

@@ -1,8 +1,10 @@
 package com.example
 
 import com.example.service.CamouflagedEmergencyForegroundService
+import com.example.service.EmergencyBootReceiver
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CamouflagedEmergencyForegroundServiceTest {
@@ -19,10 +21,32 @@ class CamouflagedEmergencyForegroundServiceTest {
     }
 
     @Test
+    fun testIntentExtrasAndBootReceiverKeys() {
+        assertEquals("extra_disguise_persona", CamouflagedEmergencyForegroundService.EXTRA_DISGUISE_PERSONA)
+        assertEquals("extra_beacon_token", CamouflagedEmergencyForegroundService.EXTRA_BEACON_TOKEN)
+        assertEquals("extra_start_time_ms", CamouflagedEmergencyForegroundService.EXTRA_START_TIME_MS)
+
+        assertEquals("umkhuseli_sos_doze_state", EmergencyBootReceiver.PREFS_NAME)
+        assertEquals("key_is_beacon_active", EmergencyBootReceiver.KEY_IS_BEACON_ACTIVE)
+        assertEquals("key_beacon_token", EmergencyBootReceiver.KEY_BEACON_TOKEN)
+        assertEquals("key_beacon_start_time", EmergencyBootReceiver.KEY_BEACON_START_TIME)
+        assertEquals("key_persona", EmergencyBootReceiver.KEY_PERSONA)
+    }
+
+    @Test
     fun testDozeCheckIntervalsAreBatterySafe() {
-        // Assert 15-minute interval for Doze mode to preserve survivor's battery during outages
         val fifteenMinutesMs = 15 * 60 * 1000L
         assertEquals(fifteenMinutesMs, CamouflagedEmergencyForegroundService.DOZE_CHECK_INTERVAL_MS)
         assertEquals(500f, CamouflagedEmergencyForegroundService.MIN_DISTANCE_METERS)
+    }
+
+    @Test
+    fun testAdversaryEthicalSafetyChannelInvariants() {
+        // Channel ID and descriptions must never expose distress, SOS, violence or tracking
+        val channelId = CamouflagedEmergencyForegroundService.CHANNEL_ID
+        assertFalse(channelId.contains("sos", ignoreCase = true))
+        assertFalse(channelId.contains("emergency", ignoreCase = true))
+        assertFalse(channelId.contains("gbv", ignoreCase = true))
+        assertFalse(channelId.contains("track", ignoreCase = true))
     }
 }

@@ -8,11 +8,13 @@ import com.example.data.local.dao.GuardianDao
 import com.example.data.local.dao.IncidentDao
 import com.example.data.local.dao.RegisteredContactDao
 import com.example.data.local.dao.SafeJourneyDao
+import com.example.data.local.dao.SosBeaconBreadcrumbDao
 import com.example.data.local.dao.UserProfileDao
 import com.example.data.local.entity.GuardianEntity
 import com.example.data.local.entity.IncidentEntity
 import com.example.data.local.entity.RegisteredContactEntity
 import com.example.data.local.entity.SafeJourneyEntity
+import com.example.data.local.entity.SosBeaconBreadcrumbEntity
 import com.example.data.local.entity.UserProfileEntity
 
 @Database(
@@ -21,9 +23,10 @@ import com.example.data.local.entity.UserProfileEntity
         GuardianEntity::class,
         UserProfileEntity::class,
         SafeJourneyEntity::class,
-        RegisteredContactEntity::class
+        RegisteredContactEntity::class,
+        SosBeaconBreadcrumbEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -32,6 +35,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userProfileDao(): UserProfileDao
     abstract fun safeJourneyDao(): SafeJourneyDao
     abstract fun registeredContactDao(): RegisteredContactDao
+    abstract fun sosBeaconBreadcrumbDao(): SosBeaconBreadcrumbDao
 
     companion object {
         @Volatile

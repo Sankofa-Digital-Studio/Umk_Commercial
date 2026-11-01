@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.6.2] - 2026-11-01
+
+### Added
+* feat(tracker): close legacy blocker LEGACY-B1 (#44) for screen-off SOS tracking under Android Doze
+* feat(persistence): implement Room SQLite `sos_beacon_breadcrumbs` entity and DAO replacing in-memory-only coordinates
+* feat(cadence): introduce `SosTrackingPolicy` defining 72-hour maximum beacon lifespan, 15-minute emergency burst cadence (60s), 3-minute active movement cadence, 15-minute deep Doze stationary interval, and 30-minute critical battery throttling (<=15%)
+* feat(safety): enforce 5% battery emergency halt threshold to guarantee handset power to place emergency calls (SAPS 10111 / GBV 0800 428 428)
+* feat(recovery): implement `EmergencyBootReceiver` and SharedPreferences session recovery restoring active SOS tracking after device reboot or process death
+* feat(security): audit camouflaged foreground notification against Android 14+ requirements with `FOREGROUND_SERVICE_TYPE_LOCATION`, `VISIBILITY_SECRET`, and zero leaked distress keywords
+* test(doze): add unit test suites `SosTrackingPolicyTest` and `SosBeaconPersistenceTest` verifying cadence, displacement math, and queue state transitions
+
 ## [2.6.1] - 2026-10-30
 
 ### Changes
