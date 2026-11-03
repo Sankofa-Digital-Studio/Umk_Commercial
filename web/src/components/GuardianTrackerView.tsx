@@ -11,17 +11,26 @@ import {
   Navigation,
   ArrowLeft,
   EyeOff,
+  ChevronDown,
+  ChevronUp,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { THUTHUZELA_CENTERS, sortCentresByDistance } from "../data/saSafetyData";
-import { getCachedLiveLocation } from "../services/liveLocationService";
 import {
-  readDeviceLocationWithDetails,
   inferSouthAfricanLocationSync,
-  resolveCoordinatesFromAddressOrProfile,
-  SouthAfricanLocationDetails
+  readDeviceLocationWithDetails,
+  SouthAfricanLocationDetails,
 } from "../services/deviceLocationResolver";
-import { getUatProfile } from "../services/uatProfileService";
+import {
+  formatBeaconRelativeTime,
+  haversineDistanceMeters,
+  LiveSosBeacon,
+  loadActiveSosBeacon,
+  persistBeaconLocation,
+} from "../services/liveBeaconService";
+import { HttpToastNotification } from "./common/HttpToastNotification";
+import { useHttpToasts } from "../hooks/useHttpToasts";
 
 interface Props {
   beaconToken?: string;
@@ -29,221 +38,106 @@ interface Props {
 }
 
 
-export function formatTriggeredTime(dispatchedAtIso: string): string {
-  try {
-    const diffMs = Date.now() - new Date(dispatchedAtIso).getTime();
-    const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
-    if (diffMinutes === 0) return "Just now (< 1 min ago)";
-    if (diffMinutes === 1) return "1 minute ago";
-    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
-    const diffHours = Math.floor(diffMinutes / 60);
-    return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-  } catch {
-    return "Recent";
-  }
-}
-
 export const GuardianTrackerView: React.FC<Props> = ({
-  beaconToken = "demo-ephemeral-beacon-72h",
+  beaconToken,
   onExit
 }) => {
   const [acknowledged, setAcknowledged] = useState(false);
   const [discreetMode, setDiscreetMode] = useState(false);
-  const [isReadingLocation, setIsReadingLocation] = useState(false);
-  const [isLiveDeviceGps, setIsLiveDeviceGps] = useState(false);
+  const [beacon, setBeacon] = useState<LiveSosBeacon | null>(null);
+  const [isLoadingBeacon, setIsLoadingBeacon] = useState(true);
+  const [beaconError, setBeaconError] = useState("");
+  const [currentCoords, setCurrentCoords] = useState({ latitude: 0, longitude: 0, accuracyMeters: 0 });
+  const [currentAreaName, setCurrentAreaName] = useState("Location unavailable");
+  const [locationDetails, setLocationDetails] = useState<SouthAfricanLocationDetails>(() =>
+    inferSouthAfricanLocationSync(0, 0, 0, "CACHE")
+  );
+  const [isLocationCardOpen, setIsLocationCardOpen] = useState(false);
+  const [pendingDeviceLocation, setPendingDeviceLocation] = useState<SouthAfricanLocationDetails | null>(null);
+  const [isComparingLocation, setIsComparingLocation] = useState(false);
+  const [isPersistingLocation, setIsPersistingLocation] = useState(false);
+  const [showLocationRefreshPrompt, setShowLocationRefreshPrompt] = useState(false);
+  const { toasts, showToast, removeToast } = useHttpToasts();
 
-  // Read live beacon parameters on load from URL query params or localStorage
-  const initialBeacon = useMemo(() => {
-    let lat: number | undefined;
-    let lng: number | undefined;
-    let acc: number | undefined;
-    let bat: number | undefined;
-    let tokenVal = beaconToken;
-    let dispatchedAt = new Date(Date.now() - 4 * 60 * 1000).toISOString();
-    let areaName = "Location not shared";
-    let isCharging = false;
-    let hasExplicitBeaconCoordinates = false;
-
-    if (typeof window !== "undefined") {
-      const searchParams = new URLSearchParams(window.location.search);
-      const urlLat = searchParams.get("lat");
-      const urlLng = searchParams.get("lng");
-      const urlAcc = searchParams.get("acc");
-      const urlBat = searchParams.get("bat");
-      const urlToken = searchParams.get("token") || searchParams.get("track");
-
-      if (urlLat && urlLng) {
-        lat = parseFloat(urlLat);
-        lng = parseFloat(urlLng);
-        hasExplicitBeaconCoordinates = true;
-      }
-      if (urlAcc) acc = parseFloat(urlAcc);
-      if (urlBat) bat = parseInt(urlBat, 10);
-      if (urlToken) tokenVal = urlToken;
-
-      // Fallback to localStorage.getItem("pcalc_last_beacon")
-      if (lat === undefined || lng === undefined) {
-        try {
-          const raw = localStorage.getItem("pcalc_last_beacon");
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed.latitude !== undefined && parsed.longitude !== undefined) {
-              lat = parsed.latitude;
-              lng = parsed.longitude;
-              hasExplicitBeaconCoordinates = true;
-            }
-            if (parsed.accuracyMeters !== undefined) acc = parsed.accuracyMeters;
-            else if (parsed.accuracy !== undefined) acc = parsed.accuracy;
-            if (parsed.batteryPercentage !== undefined) bat = parsed.batteryPercentage;
-            if (parsed.token || parsed.id) tokenVal = parsed.token || parsed.id;
-            if (parsed.dispatchedAt) dispatchedAt = parsed.dispatchedAt;
-            if (parsed.areaName) areaName = parsed.areaName;
-            if (parsed.isCharging !== undefined) isCharging = parsed.isCharging;
-          }
-        } catch {
-          /* ignore json parse errors */
-        }
-      }
-    }
-
-    // Prioritize: 1) explicit beacon/URL coords, 2) live cached device GPS, 3) survivor profile address/area
-    const cachedLiveGps = getCachedLiveLocation();
-    let profileAreaCoords: { latitude: number; longitude: number; areaName: string; province: string } | null = null;
-    try {
-      const uatProf = getUatProfile();
-      if (uatProf?.personal?.address) {
-        profileAreaCoords = resolveCoordinatesFromAddressOrProfile(uatProf.personal.address);
-      }
-    } catch {
-      /* ignore */
-    }
-
-    let resolvedLat = -28.4793;
-    let resolvedLng = 24.6727;
-    let resolvedArea = "Location not shared — showing national reference map";
-
-    if (cachedLiveGps) {
-      resolvedLat = cachedLiveGps.lat;
-      resolvedLng = cachedLiveGps.lng;
-      resolvedArea = cachedLiveGps.areaName || resolvedArea;
-    } else if (profileAreaCoords) {
-      resolvedLat = profileAreaCoords.latitude;
-      resolvedLng = profileAreaCoords.longitude;
-      resolvedArea = profileAreaCoords.areaName;
-    }
-
-    const finalLat = lat !== undefined && !isNaN(lat) ? lat : resolvedLat;
-    const finalLng = lng !== undefined && !isNaN(lng) ? lng : resolvedLng;
-    const finalAcc = acc !== undefined && !isNaN(acc) ? acc : (cachedLiveGps?.accuracy ?? 14);
-    const finalBat = bat !== undefined && !isNaN(bat) ? bat : 78;
-    const finalArea = hasExplicitBeaconCoordinates && areaName
-      ? areaName
-      : (cachedLiveGps?.areaName || (profileAreaCoords ? profileAreaCoords.areaName : resolvedArea));
-
-    return {
-      id: tokenVal,
-      dispatchedAt,
-      latitude: finalLat,
-      longitude: finalLng,
-      accuracyMeters: finalAcc,
-      areaName: finalArea,
-      batteryPercentage: finalBat,
-      isCharging,
-      hasExplicitBeaconCoordinates,
-      hasUsableLocation: hasExplicitBeaconCoordinates || Boolean(cachedLiveGps || profileAreaCoords)
-    };
+  const responderToken = useMemo(() => {
+    const urlToken = typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("track") || new URLSearchParams(window.location.search).get("token")
+      : null;
+    return urlToken || beaconToken || undefined;
   }, [beaconToken]);
 
-  // Active coordinates & telemetry
-  const [currentCoords, setCurrentCoords] = useState({
-    latitude: initialBeacon.latitude,
-    longitude: initialBeacon.longitude,
-    accuracyMeters: initialBeacon.accuracyMeters,
-  });
-
-  const [currentAreaName, setCurrentAreaName] = useState(initialBeacon.areaName);
-
-  // Resolved structured South African location (District, Region, City, Town)
-  const [locationDetails, setLocationDetails] = useState<SouthAfricanLocationDetails>(() =>
-    inferSouthAfricanLocationSync(
-      initialBeacon.latitude,
-      initialBeacon.longitude,
-      initialBeacon.accuracyMeters,
-      initialBeacon.hasExplicitBeaconCoordinates ? "BEACON_TELEMETRY" : "CACHE"
-    )
-  );
-
-  // Synchronize state if initialBeacon changes
   useEffect(() => {
-    setCurrentCoords({
-      latitude: initialBeacon.latitude,
-      longitude: initialBeacon.longitude,
-      accuracyMeters: initialBeacon.accuracyMeters,
-    });
-    setCurrentAreaName(initialBeacon.areaName);
-    setLocationDetails(
-      inferSouthAfricanLocationSync(
-        initialBeacon.latitude,
-        initialBeacon.longitude,
-        initialBeacon.accuracyMeters,
-        initialBeacon.hasExplicitBeaconCoordinates ? "BEACON_TELEMETRY" : "CACHE"
-      )
-    );
-  }, [initialBeacon]);
+    let active = true;
+    setIsLoadingBeacon(true);
+    loadActiveSosBeacon(responderToken)
+      .then(async (record) => {
+        if (!active) return;
+        setBeacon(record);
+        if (record?.latitude != null && record.longitude != null) {
+          const accuracy = record.accuracy || 0;
+          setCurrentCoords({ latitude: record.latitude, longitude: record.longitude, accuracyMeters: accuracy });
+          setCurrentAreaName(record.areaName);
+          setLocationDetails(inferSouthAfricanLocationSync(record.latitude, record.longitude, accuracy, "BEACON_TELEMETRY"));
+        }
 
-  // Read actual device location on mount if no explicit fixed beacon was supplied
-  useEffect(() => {
-    let isMounted = true;
-
-    if (!initialBeacon.hasExplicitBeaconCoordinates && typeof navigator !== "undefined" && navigator.geolocation) {
-      setIsReadingLocation(true);
-      readDeviceLocationWithDetails({ timeoutMs: 8000, highAccuracy: true })
-        .then((details) => {
-          if (isMounted) {
-            setCurrentCoords({
-              latitude: details.latitude,
-              longitude: details.longitude,
-              accuracyMeters: details.accuracy
-            });
-            setLocationDetails(details);
-            setIsLiveDeviceGps(true);
-            if (details.town) {
-              setCurrentAreaName(`${details.town} / ${details.province}`);
+        // A responder link is deliberately read-only. Only the survivor's owner
+        // session may compare device GPS and update its own persisted beacon.
+        if (!responderToken && record?.latitude != null && record.longitude != null) {
+          setIsComparingLocation(true);
+          try {
+            const deviceLocation = await readDeviceLocationWithDetails({ timeoutMs: 10000, highAccuracy: true });
+            if (!active || deviceLocation.source === "CACHE") return;
+            const distance = haversineDistanceMeters(
+              { latitude: record.latitude, longitude: record.longitude },
+              { latitude: deviceLocation.latitude, longitude: deviceLocation.longitude },
+            );
+            if (distance >= 500) {
+              setPendingDeviceLocation(deviceLocation);
+              setShowLocationRefreshPrompt(true);
             }
+          } catch {
+            // Permission denial or unavailable GPS must not block emergency actions.
+          } finally {
+            if (active) setIsComparingLocation(false);
           }
-        })
-        .catch(() => {
-          // Graceful silent fallback to default coordinates
-        })
-        .finally(() => {
-          if (isMounted) setIsReadingLocation(false);
-        });
-    }
+        }
+      })
+      .catch((error) => active && setBeaconError(error instanceof Error ? error.message : "Unable to verify beacon."))
+      .finally(() => active && setIsLoadingBeacon(false));
+    return () => { active = false; };
+  }, [responderToken]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [initialBeacon.hasExplicitBeaconCoordinates]);
-
-  // Manual GPS refresh handler
-  const handleRefreshLocation = async () => {
-    setIsReadingLocation(true);
+  const handleRefreshPersistedLocation = async () => {
+    if (!beacon || !pendingDeviceLocation || responderToken || isPersistingLocation) return;
+    setIsLocationCardOpen(true);
+    document.getElementById("guardian-beacon-location")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setIsPersistingLocation(true);
     try {
-      const details = await readDeviceLocationWithDetails({ timeoutMs: 10000, highAccuracy: true });
-      setCurrentCoords({
-        latitude: details.latitude,
-        longitude: details.longitude,
-        accuracyMeters: details.accuracy
+      const updated = await persistBeaconLocation(beacon.id, {
+        latitude: pendingDeviceLocation.latitude,
+        longitude: pendingDeviceLocation.longitude,
+        accuracy: pendingDeviceLocation.accuracy,
+        areaName: pendingDeviceLocation.formattedDisplay,
       });
-      setLocationDetails(details);
-      setIsLiveDeviceGps(true);
-      if (details.town) {
-        setCurrentAreaName(`${details.town} / ${details.province}`);
-      }
-    } catch (err) {
-      console.warn("Manual GPS location refresh failed:", err);
+      setBeacon(updated);
+      setCurrentCoords({
+        latitude: updated.latitude!,
+        longitude: updated.longitude!,
+        accuracyMeters: updated.accuracy || 0,
+      });
+      setCurrentAreaName(updated.areaName);
+      setLocationDetails(pendingDeviceLocation);
+      setPendingDeviceLocation(null);
+      setShowLocationRefreshPrompt(false);
+      showToast("success", "Coordinates refreshed", "Current survivor coordinates were saved successfully.", 200);
+    } catch (error) {
+      showToast(
+        "failed",
+        "Coordinate refresh failed",
+        error instanceof Error ? error.message : "The current coordinates could not be saved.",
+      );
     } finally {
-      setIsReadingLocation(false);
+      setIsPersistingLocation(false);
     }
   };
 
@@ -257,11 +151,13 @@ export const GuardianTrackerView: React.FC<Props> = ({
     return sortedCentres[0] || THUTHUZELA_CENTERS[0];
   }, [currentCoords.latitude, currentCoords.longitude]);
 
-  const googleMapsUrl = `https://maps.google.com/?q=${currentCoords.latitude},${currentCoords.longitude}`;
+  const hasUsableLocation = beacon?.latitude != null && beacon.longitude != null;
+  const googleMapsUrl = hasUsableLocation ? `https://maps.google.com/?q=${currentCoords.latitude},${currentCoords.longitude}` : null;
 
   const handleAcknowledge = () => {
+    if (!beacon) return;
     setAcknowledged(true);
-    const ackPayload = { token: initialBeacon.id, timestamp: Date.now() };
+    const ackPayload = { token: beacon.id, timestamp: Date.now() };
 
     if (typeof localStorage !== "undefined") {
       try {
@@ -275,7 +171,7 @@ export const GuardianTrackerView: React.FC<Props> = ({
       try {
         if ("BroadcastChannel" in window) {
           const channel = new BroadcastChannel("pcalc_emergency_channel");
-          channel.postMessage({ type: "BEACON_ACKNOWLEDGED", token: initialBeacon.id, timestamp: Date.now() });
+          channel.postMessage({ type: "BEACON_ACKNOWLEDGED", token: beacon.id, timestamp: Date.now() });
           channel.close();
         }
       } catch {
@@ -284,7 +180,7 @@ export const GuardianTrackerView: React.FC<Props> = ({
 
       try {
         window.dispatchEvent(
-          new CustomEvent("pcalc_beacon_acknowledged", { detail: { token: initialBeacon.id } })
+          new CustomEvent("pcalc_beacon_acknowledged", { detail: { token: beacon.id } })
         );
       } catch {
         /* custom event fallback */
@@ -311,21 +207,22 @@ export const GuardianTrackerView: React.FC<Props> = ({
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between max-w-md mx-auto select-none border-x border-slate-800">
+      <HttpToastNotification toasts={toasts} onDismiss={removeToast} />
       {/* Tactical Header */}
       <header className="bg-slate-900 border-b border-rose-900/40 p-4 sticky top-0 z-50 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/50 flex items-center justify-center animate-pulse">
+          <div className={`w-9 h-9 rounded-xl border flex items-center justify-center ${beacon ? "bg-rose-500/20 border-rose-500/50 animate-pulse" : "bg-slate-800 border-slate-700"}`}>
             <Radio className="w-5 h-5 text-rose-400" />
           </div>
           <div>
             <h1 className="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
               <span>GUARDIAN CONSOLE</span>
-              <span className="bg-rose-500/20 text-rose-400 text-[9px] font-bold px-1.5 py-0.2 rounded border border-rose-500/30">
-                LIVE
+              <span className={`${beacon ? "bg-rose-500/20 text-rose-400 border-rose-500/30" : "bg-slate-800 text-slate-400 border-slate-700"} text-[9px] font-bold px-1.5 py-0.2 rounded border`}>
+                {isLoadingBeacon ? "CHECKING" : beacon ? "LIVE" : "INACTIVE"}
               </span>
             </h1>
             <span className="text-[10px] text-slate-400 block font-mono">
-              72-Hr Ephemeral Responder Link
+              {beacon ? "Verified 72-Hr Ephemeral Responder Link" : "No verified responder link"}
             </span>
           </div>
         </div>
@@ -351,23 +248,50 @@ export const GuardianTrackerView: React.FC<Props> = ({
 
       {/* Main Tracking Content */}
       <main className="p-4 flex-1 space-y-4 overflow-y-auto">
+        {showLocationRefreshPrompt && pendingDeviceLocation && (
+          <section className="rounded-2xl border border-amber-500/50 bg-amber-950/30 p-4" role="alert">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+              <div className="flex-1">
+                <h2 className="text-sm font-bold text-white">Current location differs from the saved beacon</h2>
+                <p className="mt-1 text-xs leading-relaxed text-slate-300">
+                  The current device location is at least 500 metres from the last saved coordinates. Refresh before relying on navigation.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRefreshPersistedLocation}
+                  disabled={isPersistingLocation}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 py-2.5 text-xs font-bold text-slate-950 disabled:cursor-wait disabled:opacity-60"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isPersistingLocation ? "animate-spin" : ""}`} />
+                  {isPersistingLocation ? "Saving current coordinates…" : "Refresh saved coordinates"}
+                </button>
+                {isPersistingLocation && (
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-label="Saving current coordinates">
+                    <div className="h-full w-2/3 animate-pulse rounded-full bg-amber-400" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
         {/* Urgent Distress Banner */}
-        <div className="bg-gradient-to-br from-rose-950/80 via-slate-900 to-slate-900 rounded-2xl p-4 border border-rose-500/40 shadow-2xl relative overflow-hidden">
+        <div className={`rounded-2xl p-4 border shadow-2xl relative overflow-hidden ${beacon ? "bg-gradient-to-br from-rose-950/80 via-slate-900 to-slate-900 border-rose-500/40" : "bg-slate-900 border-slate-800"}`}>
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-rose-400 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-              EMERGENCY SOS BEACON ACTIVE
+            <span className={`text-[10px] uppercase font-mono font-bold tracking-widest flex items-center gap-1.5 ${beacon ? "text-rose-400" : "text-slate-400"}`}>
+              <span className={`w-2 h-2 rounded-full ${beacon ? "bg-rose-500 animate-ping" : "bg-slate-600"}`} />
+              {isLoadingBeacon ? "VERIFYING EMERGENCY BEACON" : beacon ? "EMERGENCY SOS BEACON ACTIVE" : "NO ACTIVE EMERGENCY BEACON"}
             </span>
-            <span className="text-[10px] font-mono text-slate-400">
-              Ref: {initialBeacon.id.substring(0, 8)}
-            </span>
+            {beacon && <span className="text-[10px] font-mono text-slate-400">Ref: {beacon.id}</span>}
           </div>
 
           <h2 className="text-base font-bold text-white mb-1">
-            Immediate Physical Safety Threat Reported
+            {beacon ? "Immediate Physical Safety Threat Reported" : "Guardian monitoring is standing by"}
           </h2>
           <p className="text-xs text-slate-300 leading-relaxed mb-4">
-            A verified survivor has triggered an emergency lifeline and shared their live telemetry with you as an authorized emergency guardian.
+            {beaconError || (beacon
+              ? "A verified survivor has triggered an emergency lifeline and shared live telemetry with this authenticated guardian console."
+              : "No persisted, active and unexpired SOS beacon could be verified. Live status and responder links remain disabled.")}
           </p>
 
           {/* Telemetry Stats Grid */}
@@ -376,41 +300,44 @@ export const GuardianTrackerView: React.FC<Props> = ({
               <Clock className="w-4 h-4 text-sky-400 shrink-0" />
               <div>
                 <span className="text-[10px] text-slate-500 block">TRIGGERED</span>
-                <span className="font-semibold text-white">4 minutes ago</span>
+                <span className="font-semibold text-white">{beacon ? formatBeaconRelativeTime(beacon.dispatchedAt || beacon.createdAt) || "Time unavailable" : "Not triggered"}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Battery className="w-4 h-4 text-emerald-400 shrink-0" />
               <div>
                 <span className="text-[10px] text-slate-500 block">PHONE BATTERY</span>
-                <span className="font-semibold text-emerald-400">{initialBeacon.batteryPercentage}%</span>
+                <span className="font-semibold text-emerald-400">{beacon?.batteryPercentage != null ? `${beacon.batteryPercentage}%` : "Unavailable"}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Live Location & Navigation */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div id="guardian-beacon-location" className="scroll-mt-20 bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+          <button
+            type="button"
+            className="w-full flex items-center justify-between text-left"
+            aria-expanded={isLocationCardOpen}
+            disabled={isPersistingLocation}
+            onClick={() => setIsLocationCardOpen((open) => !open)}
+          >
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-rose-400" />
+              Verified beacon location
+              {isComparingLocation && <RefreshCw className="h-3.5 w-3.5 animate-spin text-sky-400" aria-label="Checking current location" />}
+            </span>
+            {isLocationCardOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          {isLocationCardOpen && <>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-rose-400" />
-              {isLiveDeviceGps ? "Live Device Coordinates" : "Last Known Coordinates"}
+              Persisted survivor beacon coordinates
             </span>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-emerald-400 font-mono">
-                Accuracy: ±{currentCoords.accuracyMeters}m
-              </span>
-              <button
-                type="button"
-                onClick={handleRefreshLocation}
-                disabled={isReadingLocation}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors disabled:opacity-50 border border-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                title="Refresh device location"
-                aria-label="Refresh device location"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isReadingLocation ? "animate-spin text-sky-400" : ""}`} />
-              </button>
-            </div>
+            <span className="text-[10px] text-emerald-400 font-mono">
+              Accuracy: ±{currentCoords.accuracyMeters}m
+            </span>
           </div>
 
           <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2.5">
@@ -422,13 +349,9 @@ export const GuardianTrackerView: React.FC<Props> = ({
                 </div>
               </div>
               <span
-                className={`text-[9px] px-2 py-0.5 rounded-full font-mono font-bold uppercase tracking-wider ${
-                  isLiveDeviceGps
-                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                    : "bg-slate-800 text-slate-400 border border-slate-700"
-                }`}
+                className="text-[9px] px-2 py-0.5 rounded-full font-mono font-bold uppercase tracking-wider bg-slate-800 text-slate-400 border border-slate-700"
               >
-                {isLiveDeviceGps ? "Live GPS" : "Beacon Fix"}
+                Beacon fix
               </span>
             </div>
 
@@ -485,16 +408,19 @@ export const GuardianTrackerView: React.FC<Props> = ({
             </div>
           </div>
 
-          <a
-            href={googleMapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full bg-sky-600 hover:bg-sky-500 active:scale-95 transition-all text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-sky-600/30 text-xs"
-          >
-            <Navigation className="w-4 h-4" />
-            <span>Open in Google Maps / Live Route</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          {googleMapsUrl && (
+            <a
+              href={googleMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-sky-600 hover:bg-sky-500 active:scale-95 transition-all text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-sky-600/30 text-xs"
+            >
+              <Navigation className="w-4 h-4" />
+              <span>Open in Google Maps / Live Route</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+          </>}
         </div>
 
         {/* Emergency First-Responder Direct Actions */}
@@ -516,7 +442,7 @@ export const GuardianTrackerView: React.FC<Props> = ({
           </a>
 
           {/* Nearest Thuthuzela Care Centre is only claimed after a real location is available. */}
-          {initialBeacon.hasUsableLocation || isLiveDeviceGps ? (
+          {hasUsableLocation ? (
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
               <div className="pr-2">
                 <span className="text-[10px] uppercase font-bold text-amber-400 block">
@@ -558,7 +484,8 @@ export const GuardianTrackerView: React.FC<Props> = ({
           ) : (
             <button
               onClick={handleAcknowledge}
-              className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
+              disabled={!beacon}
+              className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               <span>Acknowledge Distress: I Am Responding</span>
@@ -569,8 +496,16 @@ export const GuardianTrackerView: React.FC<Props> = ({
 
       {/* Footer */}
       <footer className="p-4 border-t border-slate-900 text-center text-[10px] text-slate-500">
-        Umkhuseli Safe Haven • Zero-Install Ephemeral Guardian Protocol • Auto-expires in 72 hours
+        Umkhuseli Safe Haven • Verified Guardian Protocol • Active links expire after 72 hours
       </footer>
+      <button
+        type="button"
+        aria-label="Back to top"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        className="fixed bottom-5 right-5 z-50 rounded-full border border-slate-700 bg-slate-900 p-3 text-white shadow-xl"
+      >
+        <ChevronUp className="w-4 h-4" />
+      </button>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Car,
   CheckCircle2,
@@ -20,6 +20,7 @@ import { VehicleJourneyDetails } from "../../services/journeyTrackerService";
 import { startAudibleSiren, stopAudibleSiren, isSirenActive } from "../../services/audibleSirenService";
 import { getCachedLiveLocation } from "../../services/liveLocationService";
 import { IceContact } from "../../services/uatProfileService";
+import { buildEphemeralResponderLink, LiveSosBeacon, loadActiveSosBeacon } from "../../services/liveBeaconService";
 
 interface SosEmergencyTabProps {
   activeJourney: VehicleJourneyDetails | null;
@@ -61,7 +62,23 @@ export const SosEmergencyTab: React.FC<SosEmergencyTabProps> = ({
   const [isSirenOn, setIsSirenOn] = useState<boolean>(() => isSirenActive());
   const [isOfflineSosActive, setIsOfflineSosActive] = useState<boolean>(false);
   const [copiedGuardianLink, setCopiedGuardianLink] = useState<boolean>(false);
-  const [isLifelinesExpanded, setIsLifelinesExpanded] = useState<boolean>(true);
+  const [isLifelinesExpanded, setIsLifelinesExpanded] = useState<boolean>(false);
+  const [activeBeacon, setActiveBeacon] = useState<LiveSosBeacon | null>(null);
+  const [isBeaconLoading, setIsBeaconLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    loadActiveSosBeacon()
+      .then((beacon) => active && setActiveBeacon(beacon))
+      .catch(() => active && setActiveBeacon(null))
+      .finally(() => active && setIsBeaconLoading(false));
+    return () => { active = false; };
+  }, [sosStatus]);
+
+  const guardianLink = useMemo(
+    () => buildEphemeralResponderLink(activeBeacon, typeof window !== "undefined" ? window.location.origin : ""),
+    [activeBeacon],
+  );
 
   const handleToggleSiren = () => {
     if (isSirenOn) {
@@ -352,31 +369,33 @@ export const SosEmergencyTab: React.FC<SosEmergencyTabProps> = ({
             <Radio className="w-3.5 h-3.5 text-rose-400" />
             Burner Guardian Link (Zero-Install)
           </span>
-          <span className="bg-rose-950 text-rose-300 border border-rose-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
-            72-Hr Active
+          <span className={`${guardianLink ? "bg-rose-950 text-rose-300 border-rose-800" : "bg-slate-800 text-slate-400 border-slate-700"} border text-[10px] font-bold px-1.5 py-0.5 rounded`}>
+            {isBeaconLoading ? "Checking" : guardianLink ? "72-Hr Active" : "Inactive"}
           </span>
         </div>
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          Send this ephemeral tracker link to any trusted neighbor, family member, or CPF patroller. Works instantly on any mobile browser with zero app installation.
+          {guardianLink
+            ? "Send this verified, time-limited tracker link to a trusted responder."
+            : "A responder link becomes available only after the backend verifies an active, unexpired SOS beacon."}
         </p>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => {
-              const link = typeof window !== "undefined" ? `${window.location.origin}/?track=beacon_72h_active` : "";
-              if (typeof navigator !== "undefined" && navigator.clipboard) {
-                navigator.clipboard.writeText(link);
+              if (guardianLink && typeof navigator !== "undefined" && navigator.clipboard) {
+                navigator.clipboard.writeText(guardianLink);
                 setCopiedGuardianLink(true);
                 setTimeout(() => setCopiedGuardianLink(false), 2000);
                 if (onShowToast) onShowToast("success", "Link Copied", "Burner guardian link copied to clipboard.");
               }
             }}
-            className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5"
+            disabled={!guardianLink}
+            className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             <Copy className="w-3.5 h-3.5 text-slate-400" />
-            <span>{copiedGuardianLink ? "Link Copied!" : "Copy Burner Link"}</span>
+            <span>{copiedGuardianLink ? "Link Copied!" : guardianLink ? "Copy Responder Link" : "No Active Link"}</span>
           </button>
-          {onOpenGuardianTracker && (
+          {onOpenGuardianTracker && guardianLink && (
             <button
               type="button"
               onClick={onOpenGuardianTracker}

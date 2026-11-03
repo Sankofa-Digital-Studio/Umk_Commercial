@@ -39,7 +39,11 @@ export const App: React.FC = () => {
   });
 
   const [activeDisguise, setActiveDisguiseState] = useState<DisguiseType>(getActiveDisguise);
-  const [activeBeaconToken, setActiveBeaconToken] = useState<string>("beacon_72h_active");
+  const [activeBeaconToken] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    const params = new URLSearchParams(window.location.search);
+    return params.get("track") || params.get("token") || "";
+  });
   const [vaultSessionKey, setVaultSessionKey] = useState<number>(0);
   const [safeHavenEntrySource, setSafeHavenEntrySource] = useState<"direct" | "covert" | "shortcut">("covert");
   const facadeSequenceRef = useRef<string>("");

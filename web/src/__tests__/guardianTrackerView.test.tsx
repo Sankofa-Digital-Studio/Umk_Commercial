@@ -1,217 +1,153 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { GuardianTrackerView } from "../components/GuardianTrackerView";
+import {
+  BEACON_TTL_MS,
+  buildEphemeralResponderLink,
+  formatBeaconRelativeTime,
+  isBeaconActive,
+  LiveSosBeacon,
+} from "../services/liveBeaconService";
 
-describe("GuardianTrackerView Component (Feature 3: Zero-Install Ephemeral Responder Console)", () => {
+const mocks = vi.hoisted(() => ({
+  loadBeacon: vi.fn(),
+  persistLocation: vi.fn(),
+  readDeviceLocation: vi.fn(),
+}));
+
+vi.mock("../services/liveBeaconService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/liveBeaconService")>();
+  return {
+    ...actual,
+    loadActiveSosBeacon: mocks.loadBeacon,
+    persistBeaconLocation: mocks.persistLocation,
+  };
+});
+
+vi.mock("../services/deviceLocationResolver", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/deviceLocationResolver")>();
+  return { ...actual, readDeviceLocationWithDetails: mocks.readDeviceLocation };
+});
+
+const now = new Date("2026-11-03T08:00:00.000Z").getTime();
+const beacon: LiveSosBeacon = {
+  id: "9dbeb918-9930-4ce6-a2df-9a8bd34c78ef",
+  status: "DISPATCHED",
+  latitude: -26.2041,
+  longitude: 28.0473,
+  accuracy: 12,
+  areaName: "Johannesburg Central / Gauteng",
+  batteryPercentage: 71,
+  isCharging: false,
+  deviceModel: "Android",
+  createdAt: new Date(now - 5 * 60_000).toISOString(),
+  dispatchedAt: new Date(now - 4 * 60_000).toISOString(),
+  responderToken: "b7c2abda-c66d-46f5-bc77-a08fb3afabcc",
+  expiresAt: new Date(now + BEACON_TTL_MS - 4 * 60_000).toISOString(),
+};
+
+describe("Guardian Console live beacon truth", () => {
   beforeEach(() => {
-    localStorage.clear();
     vi.clearAllMocks();
-    delete (global.navigator as any).geolocation;
+    vi.setSystemTime(now);
+    window.history.replaceState({}, "", "/");
+    mocks.readDeviceLocation.mockRejectedValue(new Error("GPS unavailable"));
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
+  it("never presents Live, Active, a reference or triggered time without a verified beacon", async () => {
+    mocks.loadBeacon.mockResolvedValue(null);
+    render(<GuardianTrackerView />);
+    expect(await screen.findByText("INACTIVE")).toBeInTheDocument();
+    expect(screen.getByText(/NO ACTIVE EMERGENCY BEACON/i)).toBeInTheDocument();
+    expect(screen.getByText("Not triggered")).toBeInTheDocument();
+    expect(screen.queryByText(/Ref:/i)).not.toBeInTheDocument();
   });
 
-  it("renders tactical rescue console header, live beacon banner, and telemetry", () => {
-    render(<GuardianTrackerView beaconToken="test-beacon-token-99" />);
-
-    expect(screen.getByText("GUARDIAN CONSOLE")).toBeInTheDocument();
-    expect(screen.getByText("LIVE")).toBeInTheDocument();
-    expect(screen.getByText(/72-Hr Ephemeral Responder Link/i)).toBeInTheDocument();
-    expect(screen.getByText(/EMERGENCY SOS BEACON ACTIVE/i)).toBeInTheDocument();
-    expect(screen.getByText("Immediate Physical Safety Threat Reported")).toBeInTheDocument();
-    expect(screen.getByText(/PHONE BATTERY/i)).toBeInTheDocument();
-    expect(screen.getByText("78%")).toBeInTheDocument();
+  it("renders persisted reference, real relative time and telemetry for a verified active beacon", async () => {
+    mocks.loadBeacon.mockResolvedValue(beacon);
+    render(<GuardianTrackerView beaconToken={beacon.responderToken} />);
+    expect(await screen.findByText("LIVE")).toBeInTheDocument();
+    expect(screen.getByText("EMERGENCY SOS BEACON ACTIVE")).toBeInTheDocument();
+    expect(screen.getByText(`Ref: ${beacon.id}`)).toBeInTheDocument();
+    expect(screen.getByText("4 minutes ago")).toBeInTheDocument();
+    expect(screen.getByText("71%")).toBeInTheDocument();
   });
 
-  it("renders Google Maps navigation link and emergency call buttons", () => {
-    render(<GuardianTrackerView beaconToken="test-beacon-token-99" />);
-
-    const mapsLink = screen.getByRole("link", { name: /Open in Google Maps \/ Live Route/i });
-    expect(mapsLink).toBeInTheDocument();
-    expect(mapsLink).toHaveAttribute("href", expect.stringContaining("https://maps.google.com/?q="));
-
-    const sapsLink = screen.getByRole("link", { name: /Call SAPS Emergency Flying Squad/i });
-    expect(sapsLink).toBeInTheDocument();
-    expect(sapsLink).toHaveAttribute("href", "tel:10111");
-
-    expect(screen.getByText(/Location not shared — showing national reference map/i)).toBeInTheDocument();
-    expect(screen.getByText(/Nearest care facility is an estimate until live coordinates are shared/i)).toBeInTheDocument();
+  it("only creates responder links for active, unexpired records", () => {
+    expect(isBeaconActive(beacon, now)).toBe(true);
+    expect(buildEphemeralResponderLink(beacon, "https://example.test", now))
+      .toBe(`https://example.test/?track=${beacon.responderToken}`);
+    const expired = { ...beacon, expiresAt: new Date(now).toISOString() };
+    expect(isBeaconActive(expired, now)).toBe(false);
+    expect(buildEphemeralResponderLink(expired, "https://example.test", now)).toBeNull();
+    expect(formatBeaconRelativeTime(beacon.dispatchedAt, now)).toBe("4 minutes ago");
   });
 
-  it("reads live beacon telemetry from localStorage (pcalc_last_beacon) and dynamically finds nearest care facility with distance in km", () => {
-    localStorage.setItem(
-      "pcalc_last_beacon",
-      JSON.stringify({
-        id: "local-beacon-123",
-        latitude: -26.2606,
-        longitude: 27.9429,
-        accuracyMeters: 8,
-        areaName: "Soweto / Diepkloof",
-        batteryPercentage: 91,
-      })
-    );
+  it("keeps persisted location details closed until requested", async () => {
+    mocks.loadBeacon.mockResolvedValue(beacon);
+    render(<GuardianTrackerView />);
+    const toggle = await screen.findByRole("button", { name: /Verified beacon location/i });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Johannesburg Central / Gauteng")).toBeInTheDocument();
+  });
+
+  it("prompts the owner at 500m, opens the anchor card, persists once, and reports HTTP success", async () => {
+    const currentLocation = {
+      latitude: -26.2141,
+      longitude: 28.0473,
+      accuracy: 8,
+      district: "City of Johannesburg Metropolitan Municipality",
+      region: "Gauteng Central (Region F)",
+      city: "Johannesburg",
+      town: "Johannesburg Central",
+      province: "Gauteng",
+      formattedDisplay: "Johannesburg Central, Gauteng",
+      source: "GPS_DEVICE" as const,
+      timestamp: now,
+    };
+    const updatedBeacon = {
+      ...beacon,
+      latitude: currentLocation.latitude,
+      longitude: currentLocation.longitude,
+      accuracy: currentLocation.accuracy,
+      areaName: currentLocation.formattedDisplay,
+    };
+    mocks.loadBeacon.mockResolvedValue(beacon);
+    mocks.readDeviceLocation.mockResolvedValue(currentLocation);
+    mocks.persistLocation.mockResolvedValue(updatedBeacon);
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
 
     render(<GuardianTrackerView />);
 
-    expect(screen.getByText("Soweto / Diepkloof")).toBeInTheDocument();
-    expect(screen.getByText("91%")).toBeInTheDocument();
-    expect(screen.getByText(/Accuracy: ±8m/i)).toBeInTheDocument();
-    expect(screen.getByText("Chris Hani Baragwanath TCC")).toBeInTheDocument();
-    expect(screen.getByText(/km away/i)).toBeInTheDocument();
+    const refresh = await screen.findByRole("button", { name: /Refresh saved coordinates/i });
+    expect(mocks.readDeviceLocation).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: /Verified beacon location/i })).toHaveAttribute("aria-expanded", "false");
 
-    localStorage.clear();
-  });
-
-  it("allows the responder to acknowledge distress and logs en route confirmation", () => {
-    render(<GuardianTrackerView beaconToken="test-beacon-token-99" />);
-
-    const ackBtn = screen.getByRole("button", { name: /Acknowledge Distress: I Am Responding/i });
-    expect(ackBtn).toBeInTheDocument();
-
-    fireEvent.click(ackBtn);
-
-    expect(screen.getByText(/Response Acknowledged: En Route to Survivor/i)).toBeInTheDocument();
-  });
-
-  it("broadcasts acknowledgment signal and writes to localStorage when responder acknowledges", () => {
-    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
-    render(<GuardianTrackerView beaconToken="ack-test-token" />);
-
-    const ackBtn = screen.getByRole("button", { name: /Acknowledge Distress: I Am Responding/i });
-    fireEvent.click(ackBtn);
-
-    const storedAck = localStorage.getItem("pcalc_beacon_ack");
-    expect(storedAck).not.toBeNull();
-    const parsed = JSON.parse(storedAck!);
-    expect(parsed.token).toBe("ack-test-token");
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "pcalc_beacon_acknowledged",
-      })
-    );
-
-    dispatchSpy.mockRestore();
-    localStorage.clear();
-  });
-
-  it("switches to discreet dimmed mode when eye icon is clicked and restores", () => {
-    render(<GuardianTrackerView beaconToken="test-beacon-token-99" />);
-
-    const dimBtn = screen.getByTitle("Dim screen");
-    fireEvent.click(dimBtn);
-
-    expect(screen.getByText("Navigation Assistant Active")).toBeInTheDocument();
-    expect(screen.getByText(/Display dimmed for privacy in public transit/i)).toBeInTheDocument();
-
-    const restoreBtn = screen.getByRole("button", { name: /Restore Guardian Rescue Console/i });
-    fireEvent.click(restoreBtn);
-
-    expect(screen.getByText("GUARDIAN CONSOLE")).toBeInTheDocument();
-  });
-
-  it("invokes onExit callback when arrow back is clicked", () => {
-    const mockExit = vi.fn();
-    render(<GuardianTrackerView beaconToken="test-token" onExit={mockExit} />);
-
-    const backBtn = screen.getAllByRole("button")[1]; // Exit button
-    fireEvent.click(backBtn);
-
-    expect(mockExit).toHaveBeenCalledTimes(1);
-  });
-
-  it("displays structured South African location hierarchy (District, Region, City, Town)", () => {
-    localStorage.setItem(
-      "pcalc_last_beacon",
-      JSON.stringify({
-        id: "district-test-beacon",
-        latitude: -26.2041,
-        longitude: 28.0473,
-        accuracyMeters: 14,
-        areaName: "Johannesburg Central / Gauteng",
-      })
-    );
-
-    render(<GuardianTrackerView />);
-
-    expect(screen.getByText("District")).toBeInTheDocument();
-    expect(screen.getByText("Region")).toBeInTheDocument();
-    expect(screen.getByText("City")).toBeInTheDocument();
-    expect(screen.getByText("Town / Suburb")).toBeInTheDocument();
-
-    expect(screen.getByTestId("location-district")).toHaveTextContent(
-      "City of Johannesburg Metropolitan Municipality"
-    );
-    expect(screen.getByTestId("location-region")).toHaveTextContent("Gauteng Central (Region F)");
-    expect(screen.getByTestId("location-city")).toHaveTextContent("Johannesburg");
-    expect(screen.getByTestId("location-town")).toHaveTextContent("Johannesburg Central");
-  });
-
-  it("reads device location and refreshes location telemetry when refresh button is clicked", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Offline test environment")));
-
-    const mockGetCurrentPosition = vi.fn().mockImplementation((success) => {
-      success({
-        coords: {
-          latitude: -33.9249,
-          longitude: 18.4241,
-          accuracy: 10,
-        },
-      });
+    fireEvent.click(refresh);
+    expect(screen.getByRole("button", { name: /Verified beacon location/i })).toHaveAttribute("aria-expanded", "true");
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mocks.persistLocation).toHaveBeenCalledTimes(1));
+    expect(mocks.persistLocation).toHaveBeenCalledWith(beacon.id, {
+      latitude: currentLocation.latitude,
+      longitude: currentLocation.longitude,
+      accuracy: currentLocation.accuracy,
+      areaName: currentLocation.formattedDisplay,
     });
-
-    Object.defineProperty(global.navigator, "geolocation", {
-      value: {
-        getCurrentPosition: mockGetCurrentPosition,
-      },
-      writable: true,
-      configurable: true,
-    });
-
-    render(<GuardianTrackerView beaconToken="refresh-test" />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("location-city")).toHaveTextContent("Cape Town");
-    });
-    mockGetCurrentPosition.mockClear();
-
-    const refreshBtn = screen.getByRole("button", { name: /Refresh device location/i });
-    expect(refreshBtn).toBeInTheDocument();
-
-    fireEvent.click(refreshBtn);
-
-    await waitFor(() => {
-      expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
-      expect(screen.getByTestId("location-city")).toHaveTextContent("Cape Town");
-      expect(screen.getByTestId("location-district")).toHaveTextContent(
-        "City of Cape Town Metropolitan Municipality"
-      );
-    });
+    expect(await screen.findByTestId("http-toast-success")).toHaveTextContent("HTTP 200");
+    expect(screen.queryByRole("button", { name: /Refresh saved coordinates/i })).not.toBeInTheDocument();
   });
 
-  it("resolves live Welkom beacon coordinates to Bongani Hospital TCC without a hardcoded Johannesburg fallback", () => {
-    localStorage.setItem(
-      "pcalc_last_beacon",
-      JSON.stringify({
-        id: "welkom-live-beacon",
-        latitude: -27.9471,
-        longitude: 26.7237,
-        accuracyMeters: 12,
-        areaName: "Flamingo Park, Welkom",
-        batteryPercentage: 72,
-      })
-    );
+  it("keeps responder-token consoles read-only and never requests device GPS", async () => {
+    mocks.loadBeacon.mockResolvedValue(beacon);
+    render(<GuardianTrackerView beaconToken={beacon.responderToken} />);
 
-    render(<GuardianTrackerView beaconToken="welkom-test-token" />);
-    expect(screen.getByText(/Flamingo Park, Welkom/i)).toBeInTheDocument();
-    expect(screen.getByText("Bongani Hospital TCC")).toBeInTheDocument();
-    expect(screen.getByTestId("location-region")).toHaveTextContent("Free State Goldfields");
-    expect(screen.getByText(/3\.4 km away/i)).toBeInTheDocument();
-    expect(screen.getByTestId("location-city")).toHaveTextContent("Welkom");
-
-    localStorage.clear();
+    expect(await screen.findByText("LIVE")).toBeInTheDocument();
+    expect(mocks.loadBeacon).toHaveBeenCalledWith(beacon.responderToken);
+    expect(mocks.readDeviceLocation).not.toHaveBeenCalled();
+    expect(mocks.persistLocation).not.toHaveBeenCalled();
   });
 });
