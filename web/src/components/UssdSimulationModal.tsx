@@ -1,5 +1,7 @@
-import React, { useState } from "react";
-import { PhoneCall, ShieldCheck, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Copy, PhoneCall, ShieldCheck, X } from "lucide-react";
+import { THUTHUZELA_CENTERS, sortCentresByDistance } from "../data/saSafetyData";
+import { getCachedLiveLocation } from "../services/liveLocationService";
 
 interface Props {
   isOpen: boolean;
@@ -17,6 +19,17 @@ export const UssdSimulationModal: React.FC<Props> = ({
   const [userInput, setUserInput] = useState("");
   const [screenStep, setScreenStep] = useState<"menu" | "response">("menu");
   const [responseMessage, setResponseMessage] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const isUssdCode = ussdCode.trim().startsWith("*");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setUserInput("");
+    setScreenStep("menu");
+    setResponseMessage("");
+    setCopied(false);
+  }, [isOpen, ussdCode]);
 
   if (!isOpen) return null;
 
@@ -28,8 +41,14 @@ export const UssdSimulationModal: React.FC<Props> = ({
       );
       setScreenStep("response");
     } else if (trimmed === "2") {
+      const cached = getCachedLiveLocation();
+      const nearest = cached
+        ? sortCentresByDistance(THUTHUZELA_CENTERS, cached.lat, cached.lng)[0]
+        : null;
       setResponseMessage(
-        "📍 Nearest 24/7 Safe Haven:\nChris Hani Baragwanath TCC\n26 Chris Hani Rd, Diepkloof, Soweto\nDirect line: 011 933 9111.\nOpen 24/7 with forensic & trauma support."
+        nearest
+          ? `📍 Nearest 24/7 Safe Haven:\n${nearest.name}\n${nearest.address}\nDirect line: ${nearest.contactNumber}.\nOpen 24/7 with forensic & trauma support.`
+          : "📍 Live location is not available. Open the Centres tab to choose your province or enable device location for a nearest-centre result."
       );
       setScreenStep("response");
     } else if (trimmed === "3") {
@@ -72,7 +91,31 @@ export const UssdSimulationModal: React.FC<Props> = ({
 
         {/* USSD Screen Body */}
         <div className="p-5 space-y-4 text-xs">
-          {screenStep === "menu" ? (
+          {!isUssdCode ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                <PhoneCall className="w-4 h-4" />
+                <span>In-app lifeline contact</span>
+              </div>
+              <p className="text-slate-200 leading-relaxed">
+                <strong className="text-white">{serviceTitle}</strong> is ready at the toll-free number below. The contact remains visible in Safe Haven until you choose to open the phone dialler.
+              </p>
+              <div className="rounded-xl border border-emerald-700/50 bg-emerald-950/30 p-4 text-center">
+                <span className="text-lg font-black tracking-wider text-emerald-300">{ussdCode}</span>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  await navigator.clipboard?.writeText(ussdCode);
+                  setCopied(true);
+                }}
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-slate-100 flex items-center justify-center gap-2"
+              >
+                <Copy className="w-4 h-4" />
+                <span>{copied ? "Number copied" : "Copy number without leaving Safe Haven"}</span>
+              </button>
+            </div>
+          ) : screenStep === "menu" ? (
             <>
               <div className="space-y-2 text-slate-100 font-medium">
                 <p className="font-bold text-amber-400">Welcome to {serviceTitle}</p>
@@ -125,7 +168,14 @@ export const UssdSimulationModal: React.FC<Props> = ({
           >
             Cancel
           </button>
-          {screenStep === "menu" ? (
+          {!isUssdCode ? (
+            <a
+              href={`tel:${ussdCode.replace(/\s/g, "")}`}
+              className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors uppercase tracking-wider shadow"
+            >
+              Open phone dialler
+            </a>
+          ) : screenStep === "menu" ? (
             <button
               type="button"
               onClick={handleSend}

@@ -38,6 +38,8 @@ hs_err_pid*
 # Local tooling
 .vscode/
 .fleet/
+.playwright-cli/
+supabase/.temp/
 
 
 .vercel

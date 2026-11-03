@@ -1,8 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { encryptData, calculateSha256 } from "./crypto";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://placeholder-project.supabase.co";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder";
+const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+const configuredSupabaseKey = (
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
+)?.trim();
+
+export const isSupabaseConfigured = Boolean(configuredSupabaseUrl && configuredSupabaseKey);
+
+// A local, unreachable URL keeps unit tests deterministic without shipping a fake hosted project.
+const supabaseUrl = configuredSupabaseUrl || "http://127.0.0.1:54321";
+const supabaseAnonKey = configuredSupabaseKey || "local-test-key";
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -29,6 +37,7 @@ export interface GuardianInput {
 
 // Ensure anonymous session exists for zero-trace vault storage
 export async function getOrCreateAnonymousSession() {
+  if (!isSupabaseConfigured) return null;
   const { data: { session } } = await supabase.auth.getSession();
   if (session) return session;
 
@@ -58,9 +67,12 @@ export interface SosDispatchTelemetry {
 // Unstoppable SOS Edge Dispatch
 export async function dispatchServerSos(telemetry: SosDispatchTelemetry) {
   const session = await getOrCreateAnonymousSession();
+  if (!session?.user.id) {
+    throw new Error("A secure user session is required before dispatching an SOS.");
+  }
   const token = session?.access_token || "";
   const payload = {
-    userId: telemetry.userId || "bebd4ef7-3f99-48d7-9e82-a1d85bfaaecd",
+    userId: telemetry.userId || session.user.id,
     ...telemetry,
   };
 
@@ -177,33 +189,6 @@ export interface UatFeedbackSubmission {
   bugSeverity?: "BLOCKER" | "MAJOR" | "MINOR" | "NONE" | "SUGGESTION";
   qualitativeNotes?: string;
 }
-
-export const UAT_SIMULATED_GUARDIANS: GuardianInput[] = [
-  {
-    name: "Sister Lerato",
-    surname: "Khubeka (UAT Test 1)",
-    mobileNumber1: "+27820000001",
-    emailAddress1: "lerato.uat.test@umkhuseli.org",
-    relationship: "Sister (UAT Test Guardian)",
-    isPrimary: true
-  },
-  {
-    name: "Coordinator Sipho",
-    surname: "Ndlovu (UAT Test 2)",
-    mobileNumber1: "+27820000002",
-    emailAddress1: "sipho.uat.test@umkhuseli.org",
-    relationship: "Shelter Coordinator (UAT Ally)",
-    isPrimary: false
-  },
-  {
-    name: "TCC Facility Desk",
-    surname: "Baragwanath Test",
-    mobileNumber1: "+27820000003",
-    emailAddress1: "tcc.test@umkhuseli.org",
-    relationship: "Crisis Care Monitor",
-    isPrimary: false
-  }
-];
 
 export async function submitUatFeedback(feedback: UatFeedbackSubmission) {
   const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;

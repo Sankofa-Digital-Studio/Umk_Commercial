@@ -13,6 +13,18 @@ CREATE EXTENSION IF NOT EXISTS "postgis";
 -- Victims can authenticate anonymously via Supabase Auth (auth.uid()) or PIN-based pseudonym
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    full_name TEXT NOT NULL DEFAULT '',
+    sa_id_number TEXT NOT NULL DEFAULT '',
+    safe_word TEXT NOT NULL DEFAULT '',
+    medical_conditions TEXT NOT NULL DEFAULT '',
+    alert_email TEXT NOT NULL DEFAULT '',
+    twitter_handle TEXT NOT NULL DEFAULT '',
+    instagram_handle TEXT NOT NULL DEFAULT '',
+    facebook_profile TEXT NOT NULL DEFAULT '',
+    preferred_disguise TEXT NOT NULL DEFAULT 'MUNICIPAL_PREPAID'
+        CHECK (preferred_disguise IN ('MUNICIPAL_PREPAID', 'MUSIC_PLAYER', 'DAILY_DEVOTIONAL', 'ANDROID_LAUNCHER')),
+    is_uat_mode BOOLEAN NOT NULL DEFAULT FALSE,
+    onboarding_completed_at TIMESTAMPTZ,
     recovery_hash TEXT, -- Optional bcrypt/argon2 hash of recovery passphrase
     duress_pin_hash TEXT, -- Hash for duress trigger PIN
     preferred_language TEXT DEFAULT 'en', -- en, zu, xh, st, af
@@ -37,11 +49,13 @@ CREATE TABLE IF NOT EXISTS public.guardians (
     relationship TEXT DEFAULT 'Guardian',
     notify_via_sms BOOLEAN DEFAULT TRUE,
     is_primary BOOLEAN DEFAULT FALSE,
+    position SMALLINT NOT NULL DEFAULT 1 CHECK (position BETWEEN 1 AND 5),
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_guardians_user_id ON public.guardians(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_guardians_user_position ON public.guardians(user_id, position);
 
 -- 4. Evidence Vault: Incidents Table (Zero-Knowledge AES-256-GCM)
 -- Text and metadata are encrypted client-side with AES-256-GCM prior to upload.
@@ -117,21 +131,29 @@ ALTER TABLE public.safety_hazards ENABLE ROW LEVEL SECURITY;
 -- Profiles: Users can only see and update their own profile
 CREATE POLICY "Users view own profile" 
     ON public.profiles FOR SELECT 
-    USING (auth.uid() = id);
+    TO authenticated
+    USING ((SELECT auth.uid()) = id);
 
 CREATE POLICY "Users update own profile" 
     ON public.profiles FOR UPDATE 
-    USING (auth.uid() = id);
+    TO authenticated
+    USING ((SELECT auth.uid()) = id)
+    WITH CHECK ((SELECT auth.uid()) = id);
 
 CREATE POLICY "Users insert own profile" 
     ON public.profiles FOR INSERT 
-    WITH CHECK (auth.uid() = id);
+    TO authenticated
+    WITH CHECK ((SELECT auth.uid()) = id);
 
 -- Guardians: Strictly isolated by user_id
 CREATE POLICY "Users manage own guardians" 
     ON public.guardians FOR ALL 
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+    TO authenticated
+    USING ((SELECT auth.uid()) = user_id)
+    WITH CHECK ((SELECT auth.uid()) = user_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.guardians TO authenticated;
 
 -- Incidents: Strict zero-knowledge access
 CREATE POLICY "Users manage own incidents" 

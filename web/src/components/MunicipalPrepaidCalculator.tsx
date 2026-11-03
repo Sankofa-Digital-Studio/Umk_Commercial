@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { Zap, ChevronUp } from "lucide-react";
+import React, { useEffect, useState, useRef } from "react";
+import { Zap, ChevronUp, ChevronDown, MapPin, RefreshCw } from "lucide-react";
 import { toggleTheme } from "../services/themeManager";
 import {
   MUNICIPAL_TARIFFS,
@@ -37,8 +37,24 @@ export interface DecoyResult {
   errorCode?: string;
 }
 
+function municipalityForLocation(metro: string, province: string): MunicipalityTariff {
+  const value = `${metro} ${province}`.toLowerCase();
+  const municipalityId = value.includes("cape town")
+    ? "cape-town"
+    : value.includes("tshwane") || value.includes("pretoria")
+    ? "tshwane"
+    : value.includes("ekurhuleni")
+    ? "ekurhuleni"
+    : value.includes("johannesburg")
+    ? "city-power"
+    : value.includes("mangaung") || value.includes("bloemfontein") || value.includes("free state")
+    ? "mangaung"
+    : "eskom";
+  return MUNICIPAL_TARIFFS.find((tariff) => tariff.id === municipalityId) || MUNICIPAL_TARIFFS[0];
+}
+
 interface Props {
-  onUnlockSafeHaven: () => void;
+  onUnlockSafeHaven: (source?: "direct" | "covert") => void;
   onDuressTrigger: () => void;
   onOpenBriefing?: () => void;
 }
@@ -48,12 +64,15 @@ export const MunicipalPrepaidCalculator: React.FC<Props> = ({
   onDuressTrigger,
   onOpenBriefing,
 }) => {
-  const [selectedMuni, setSelectedMuni] = useState<MunicipalityTariff>(MUNICIPAL_TARIFFS[0]);
+  const [selectedMuni, setSelectedMuni] = useState<MunicipalityTariff>(
+    () => MUNICIPAL_TARIFFS.find((tariff) => tariff.id === "eskom") || MUNICIPAL_TARIFFS[0]
+  );
   const [meterNumber, setMeterNumber] = useState("04182948192");
   const [amount, setAmount] = useState("200");
   const [result, setResult] = useState<DecoyResult | null>(null);
   const [showStsErrorModal, setShowStsErrorModal] = useState(false);
   const [showPortalModal, setShowPortalModal] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [tokenCopied, setTokenCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<UtilityTab>("electricity");
 
@@ -67,15 +86,39 @@ export const MunicipalPrepaidCalculator: React.FC<Props> = ({
   const {
     currentTime,
     theme,
-    showBackToTop,
-    scrollToTop,
+    scrollDirection,
+    scrollToBoundary,
     loadshedding,
     telemetry,
     uatProfile,
+    liveLocation,
+    locationStatus,
+    refreshLiveLocation,
   } = useCalculatorEnvironment();
 
   const tapCountRef = useRef(0);
   const lastTapRef = useRef(0);
+  const portalSequenceRef = useRef("");
+  const locationAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (!liveLocation || locationAppliedRef.current) return;
+    setSelectedMuni(municipalityForLocation(liveLocation.metro, liveLocation.province));
+    locationAppliedRef.current = true;
+  }, [liveLocation]);
+
+  useEffect(() => {
+    const handlePortalSequence = (event: KeyboardEvent) => {
+      if (!/^\d$/.test(event.key)) return;
+      portalSequenceRef.current = `${portalSequenceRef.current}${event.key}`.slice(-4);
+      if (portalSequenceRef.current === "2468") {
+        portalSequenceRef.current = "";
+        setShowPortalModal(true);
+      }
+    };
+    window.addEventListener("keydown", handlePortalSequence);
+    return () => window.removeEventListener("keydown", handlePortalSequence);
+  }, []);
 
   const handleCrestClick = () => {
     const now = Date.now();
@@ -142,6 +185,15 @@ export const MunicipalPrepaidCalculator: React.FC<Props> = ({
     setTokenCopied(false);
   };
 
+  const handleSelectTab = (tab: UtilityTab) => {
+    setActiveTab(tab);
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+  };
+
+  const handlePortalClose = (didClose = true) => {
+    if (didClose) setShowPortalModal(false);
+  };
+
   const handleDirectoryClick = (e: React.MouseEvent, maskedName: string, num: string, realService: string) => {
     if (uatProfile.isUatMode) {
       e.preventDefault();
@@ -163,11 +215,41 @@ export const MunicipalPrepaidCalculator: React.FC<Props> = ({
         onToggleTheme={toggleTheme}
         onCrestClick={handleCrestClick}
         onOpenBriefing={onOpenBriefing}
-        onSelectTab={setActiveTab}
+        onSelectTab={handleSelectTab}
       />
 
+      <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-4" aria-live="polite">
+        <div className="rounded-2xl border border-sky-200 dark:border-sky-800/60 bg-sky-50/90 dark:bg-sky-950/30 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-start gap-2.5">
+            <MapPin className="w-4 h-4 mt-0.5 text-sky-700 dark:text-sky-400 shrink-0" aria-hidden="true" />
+            <div>
+              <p className="font-bold text-slate-900 dark:text-white">
+                {locationStatus === "locating"
+                  ? "Detecting your municipal supply area…"
+                  : liveLocation
+                  ? liveLocation.areaName
+                  : "Location is not available yet"}
+              </p>
+              <p className="mt-0.5 text-slate-600 dark:text-slate-300">
+                {liveLocation
+                  ? `${selectedMuni.name} selected for ${liveLocation.province}; tariff and outage information now follows this detected area.`
+                  : "Allow device location to select the relevant municipality, tariff, water and outage information. No Johannesburg default is applied."}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => refreshLiveLocation()}
+            className="self-start sm:self-center inline-flex items-center gap-1.5 rounded-xl border border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-900 px-3 py-2 font-bold text-sky-800 dark:text-sky-300"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${locationStatus === "locating" ? "animate-spin" : ""}`} />
+            <span>{locationStatus === "locating" ? "Locating" : "Use my location"}</span>
+          </button>
+        </div>
+      </section>
+
       {/* ── MAIN CONTENT WORKSPACE ── */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+      <main className={`flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 ${isSidebarOpen ? "lg:grid-cols-[1fr_360px]" : "lg:grid-cols-[1fr_56px]"} gap-6`}>
         <div className="space-y-4">
           {activeTab === "electricity" && (
             <>
@@ -239,18 +321,20 @@ export const MunicipalPrepaidCalculator: React.FC<Props> = ({
 
         {/* ── SIDEBAR ADVISORIES & EMERGENCY DIRECTORY ── */}
         <CalculatorSidebar
+          isOpen={isSidebarOpen}
+          onToggle={() => setIsSidebarOpen((open) => !open)}
           selectedMuni={selectedMuni}
           loadshedding={loadshedding}
           uatProfile={uatProfile}
           onOpenPortalModal={() => setShowPortalModal(true)}
-          onOpenTab={setActiveTab}
+          onOpenTab={handleSelectTab}
           onDirectoryClick={handleDirectoryClick}
         />
       </main>
 
       {/* ── FOOTER ── */}
       <CalculatorFooter
-        onSelectTab={setActiveTab}
+        onSelectTab={handleSelectTab}
         onOpenPortalModal={() => setShowPortalModal(true)}
         onOpenBriefing={onOpenBriefing}
       />
@@ -265,7 +349,7 @@ export const MunicipalPrepaidCalculator: React.FC<Props> = ({
 
       <UtilityCheatSheetModal
         isOpen={showPortalModal}
-        onClose={() => setShowPortalModal(false)}
+        onClose={handlePortalClose}
         onUnlockSafeHaven={onUnlockSafeHaven}
       />
 
@@ -277,18 +361,20 @@ export const MunicipalPrepaidCalculator: React.FC<Props> = ({
         onClose={() => setSimulatedCallModal({ ...simulatedCallModal, open: false })}
       />
 
-      {/* Floating Back to Top Button */}
-      {showBackToTop && (
-        <button
-          type="button"
-          onClick={scrollToTop}
-          className="fixed bottom-6 right-6 z-40 p-3 bg-slate-900/95 hover:bg-slate-850 text-sky-400 hover:text-white border border-sky-500/40 hover:border-sky-400 rounded-full shadow-2xl shadow-black/80 backdrop-blur-md transition-all duration-200 active:scale-95 flex items-center justify-center group cursor-pointer"
-          aria-label="Back to top of page"
-          title="Back to top"
-        >
+      {/* Bidirectional viewport boundary control */}
+      <button
+        type="button"
+        onClick={scrollToBoundary}
+        className="fixed bottom-6 right-6 z-40 p-3 bg-slate-900/95 hover:bg-slate-800 text-sky-400 hover:text-white border border-sky-500/40 hover:border-sky-400 rounded-full shadow-2xl shadow-black/80 backdrop-blur-md transition-all duration-200 active:scale-95 flex items-center justify-center group cursor-pointer"
+        aria-label={scrollDirection === "down" ? "Scroll to bottom of page" : "Scroll to top of page"}
+        title={scrollDirection === "down" ? "Scroll to bottom" : "Back to top"}
+      >
+        {scrollDirection === "down" ? (
+          <ChevronDown className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" aria-hidden="true" />
+        ) : (
           <ChevronUp className="w-5 h-5 group-hover:-translate-y-0.5 transition-transform" aria-hidden="true" />
-        </button>
-      )}
+        )}
+      </button>
 
       {/* CSS-only marquee keyframe */}
       <style>{`

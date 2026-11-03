@@ -11,14 +11,15 @@ import {
 import { dispatchServerSos } from "../services/supabase";
 import {
   getUatProfile,
+  loadUatProfile,
   saveUatProfile,
-  setUatMode,
   UatProfile,
+  getSurvivorSetupStep,
+  SurvivorSetupStep,
 } from "../services/uatProfileService";
 import { Form2CourtRecordViewerModal, CourtIncidentRecord } from "./Form2CourtRecordViewerModal";
 import {
   getIncidentsDecrypted,
-  DEFAULT_INITIAL_INCIDENT,
 } from "../services/encryptedVaultDb";
 import {
   VehicleJourneyDetails,
@@ -50,19 +51,20 @@ import { TccCentresTab } from "./safehaven/TccCentresTab";
 import { EvidenceVaultTab } from "./safehaven/EvidenceVaultTab";
 import { SafetyPlanTab } from "./safehaven/SafetyPlanTab";
 import { UatFeedbackTab } from "./safehaven/UatFeedbackTab";
+import { SurvivorSetupModal, SurvivorSetupSection } from "./SurvivorSetupModal";
 
 interface Props {
   onPanicLock: () => void;
   onOpenGuardianTracker?: () => void;
   initialTab?: "sos" | "tcc" | "vault" | "plan" | "feedback";
+  entrySource?: "direct" | "covert" | "shortcut";
 }
-
-export const ONBOARDING_STORAGE_KEY = "pcalc_survivor_onboarded";
 
 export const SafeHavenDashboard: React.FC<Props> = ({
   onPanicLock,
   onOpenGuardianTracker,
   initialTab,
+  entrySource = "covert",
 }) => {
   const { toasts, showToast, removeToast } = useHttpToasts();
 
@@ -87,33 +89,27 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     showToast(mapped, sanitized.title, sanitized.message);
   };
 
-  const [isOnboarded, setIsOnboarded] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    if (typeof process !== "undefined" && process.env?.NODE_ENV === "test") return true;
-    return localStorage.getItem(ONBOARDING_STORAGE_KEY) === "true";
-  });
-
   const [activeTab, setActiveTab] = useState<"sos" | "tcc" | "vault" | "plan" | "feedback">(() => {
     if (initialTab) return initialTab;
     if (typeof process !== "undefined" && process.env?.NODE_ENV === "test") {
       return "sos";
     }
-    if (typeof window !== "undefined" && localStorage.getItem(ONBOARDING_STORAGE_KEY) !== "true") {
-      return "plan";
-    }
-    return "sos";
+    return "plan";
   });
 
   // UAT and User Profile State
   const [uatProfile, setUatProfileState] = useState<UatProfile>(getUatProfile);
   const [isUatMode, setIsUatMode] = useState<boolean>(() => getUatProfile().isUatMode);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [setupSection, setSetupSection] = useState<SurvivorSetupSection>("profile");
+  const [isSetupOpen, setIsSetupOpen] = useState(false);
+  const [focusedSetupSection, setFocusedSetupSection] = useState<SurvivorSetupStep | null>(null);
+  const [showCompletionGate, setShowCompletionGate] = useState(false);
   const [simulatedDispatchPayload, setSimulatedDispatchPayload] = useState<any>(null);
 
   // Vault and Incidents State
   const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
-  const [recordedIncidents, setRecordedIncidents] = useState<CourtIncidentRecord[]>([
-    DEFAULT_INITIAL_INCIDENT,
-  ]);
+  const [recordedIncidents, setRecordedIncidents] = useState<CourtIncidentRecord[]>([]);
 
   // SOS Beacon State
   const [isArmed, setIsArmed] = useState(false);
@@ -258,13 +254,21 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     }
   };
 
-  const handleToggleUat = () => {
+  const handleToggleUat = async () => {
     const nextMode = !isUatMode;
-    setIsUatMode(nextMode);
-    setUatMode(nextMode);
     const updated = { ...uatProfile, isUatMode: nextMode };
     setUatProfileState(updated);
-    saveUatProfile(updated);
+    setIsUatMode(nextMode);
+    try {
+      const saved = await saveUatProfile(updated);
+      setUatProfileState(saved);
+      setIsUatMode(saved.isUatMode);
+    } catch (error) {
+      setUatProfileState(uatProfile);
+      setIsUatMode(isUatMode);
+      showToast("failed", "Unable to Change Mode", error instanceof Error ? error.message : "Profile could not be saved.");
+      return;
+    }
     showToast(
       "info",
       nextMode ? "UAT Mode Active" : "Live Mode Armed",
@@ -274,9 +278,39 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     );
   };
 
-  const handleUpdateProfile = (updated: UatProfile) => {
-    setUatProfileState(updated);
-    saveUatProfile(updated);
+  const handleUpdateProfile = async (updated: UatProfile) => {
+    const saved = await saveUatProfile(updated);
+    setUatProfileState(saved);
+    setIsUatMode(saved.isUatMode);
+  };
+
+  const incompleteSetupStep = getSurvivorSetupStep(uatProfile);
+
+  const navigateToSetupStep = (step: SurvivorSetupStep) => {
+    setShowCompletionGate(false);
+    setActiveTab("plan");
+    setFocusedSetupSection(step);
+  };
+
+  const handleSectionSaved = (section: SurvivorSetupStep, updated: UatProfile) => {
+    const nextStep = getSurvivorSetupStep(updated);
+    setFocusedSetupSection(null);
+    if (nextStep) {
+      setShowCompletionGate(true);
+    } else {
+      setActiveTab("sos");
+      triggerTactileHapticPulse(40);
+      showToast("success", "Defense Network Active", "All three survivor safety steps are securely saved.");
+    }
+  };
+
+  const requestTab = (tab: "sos" | "tcc" | "vault" | "plan" | "feedback") => {
+    const isAutomatedTest = typeof process !== "undefined" && process.env?.NODE_ENV === "test";
+    if (!isAutomatedTest && incompleteSetupStep && tab !== "sos" && tab !== "plan") {
+      setShowCompletionGate(true);
+      return;
+    }
+    setActiveTab(tab);
   };
 
   // SOS Trigger & Countdown
@@ -300,7 +334,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
       const payload = {
         simulated: true,
         timestamp: new Date().toLocaleTimeString("en-ZA"),
-        guardiansNotified: uatProfile.contacts.length || 2,
+        guardiansNotified: uatProfile.contacts.length,
         gps: liveGps ? { lat: liveGps.lat, lng: liveGps.lng } : null,
       };
       setSimulatedDispatchPayload(payload);
@@ -331,16 +365,9 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     }
   };
 
-  const handleCompleteOnboarding = () => {
-    try {
-      localStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
-    } catch {
-      // Ignored
-    }
-    setIsOnboarded(true);
-    setActiveTab("sos");
-    triggerTactileHapticPulse(40);
-    showToast("success", "Defense Network Active", "First-time safety setup complete.");
+  const openSetup = (section: SurvivorSetupSection) => {
+    setSetupSection(section);
+    setIsSetupOpen(true);
   };
 
   // Journey Timer
@@ -358,6 +385,39 @@ export const SafeHavenDashboard: React.FC<Props> = ({
   }, [activeJourney]);
 
   useEffect(() => {
+    if (typeof process !== "undefined" && process.env?.NODE_ENV === "test") {
+      setIsProfileLoading(false);
+      return;
+    }
+    let active = true;
+    loadUatProfile()
+      .then((loaded) => {
+        if (!active) return;
+        setUatProfileState(loaded);
+        setIsUatMode(loaded.isUatMode);
+        const nextStep = getSurvivorSetupStep(loaded);
+        if (nextStep) {
+          setSetupSection(nextStep);
+          setShowCompletionGate(true);
+          setActiveTab("plan");
+        } else {
+          setActiveTab("sos");
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          showToast("failed", "Profile Connection Unavailable", error instanceof Error ? error.message : "Unable to load survivor profile.");
+        }
+      })
+      .finally(() => {
+        if (active) setIsProfileLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     refreshLiveLocation();
     checkAppPermissions();
     getIncidentsDecrypted().then((data) => {
@@ -369,6 +429,43 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between max-w-md mx-auto select-none border-x border-slate-800">
       {/* Real-Time Standardized HTTP Toast Feedback */}
       <HttpToastNotification toasts={toasts} onDismiss={removeToast} />
+
+      {!isProfileLoading && showCompletionGate && incompleteSetupStep && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="presentation">
+          <section role="dialog" aria-modal="true" aria-labelledby="completion-gate-title" data-entry-source={entrySource} className="w-full max-w-sm rounded-3xl border-2 border-amber-500/60 bg-slate-950 p-5 text-slate-100 shadow-2xl">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">
+              Step {incompleteSetupStep === "profile" ? 1 : incompleteSetupStep === "ice" ? 2 : 3} of 3 · Required setup
+            </p>
+            <h2 id="completion-gate-title" className="mt-2 text-lg font-black text-white">Complete your survivor safety network</h2>
+            <p className="mt-2 text-xs leading-relaxed text-slate-300">
+              {incompleteSetupStep === "profile" && "Save a non-default survivor name or alias and a private safe word."}
+              {incompleteSetupStep === "ice" && "Save at least one real trusted ICE contact with a valid mobile number."}
+              {incompleteSetupStep === "permissions" && "Review device readiness, then save the final readiness step."}
+            </p>
+            <div className="mt-4 grid gap-2">
+              {(["profile", "ice", "permissions"] as SurvivorSetupStep[]).map((step, index) => {
+                const isCurrent = step === incompleteSetupStep;
+                return (
+                  <button key={step} type="button" disabled={!isCurrent} onClick={() => navigateToSetupStep(step)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold ${isCurrent ? "border-amber-400 bg-amber-500 text-slate-950" : "border-slate-800 bg-slate-900 text-slate-500"}`}>
+                    {index + 1}. {step === "profile" ? "Survivor profile" : step === "ice" ? "ICE contacts" : "Hardware readiness"} {isCurrent ? "— continue" : index < (["profile", "ice", "permissions"] as SurvivorSetupStep[]).indexOf(incompleteSetupStep) ? "— saved" : "— locked"}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowCompletionGate(false);
+                setActiveTab("sos");
+              }}
+              className="mt-3 w-full rounded-xl border border-rose-500/60 bg-rose-950/70 px-3 py-2.5 text-xs font-black text-rose-200"
+            >
+              Use emergency SOS now
+            </button>
+            <p className="mt-3 text-[10px] text-slate-500">SOS remains immediately available. Secondary Safe Haven areas unlock after all three persisted steps are complete.</p>
+          </section>
+        </div>
+      )}
 
       {/* Top Safe Haven Header */}
       <header
@@ -398,44 +495,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
       </header>
 
       {/* Main Tab Content */}
-      <main className="p-4 flex-1 overflow-y-auto space-y-4">
-        {/* First-Time Safety Setup Wizard Banner */}
-        {!isOnboarded && (
-          <div className="bg-gradient-to-br from-amber-950/80 via-slate-900 to-slate-900 border-2 border-amber-500/60 rounded-2xl p-4 shadow-xl space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-amber-400 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                FIRST-TIME SURVIVOR SAFETY SETUP
-              </span>
-              <span className="text-[10px] font-mono text-slate-400">Step 1 of 3</span>
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-white">
-                Configure Your Emergency Defense Network
-              </h2>
-              <p className="text-xs text-slate-300 leading-relaxed mt-1">
-                Before an emergency occurs, complete your legal particulars, register your 5 trusted ICE guardians, and enable app permissions for instant live GPS dispatch.
-              </p>
-            </div>
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setActiveTab("plan")}
-                className="flex-1 py-2 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
-              >
-                <span>Edit Profile & Contacts</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleCompleteOnboarding}
-                className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs rounded-xl border border-slate-700 transition-colors"
-              >
-                <span>Complete Setup</span>
-              </button>
-            </div>
-          </div>
-        )}
-
+      <main id="safe-haven-scroll-region" className="p-4 flex-1 overflow-y-auto space-y-4">
         {/* UAT Live Test Mode Banner */}
         <div
           className={`p-3 rounded-xl border mb-4 text-xs flex items-center justify-between transition-colors ${
@@ -495,6 +555,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
             }}
             sosStatus={sosStatus}
             simulatedDispatchPayload={simulatedDispatchPayload}
+            iceContacts={uatProfile.contacts}
             onOpenGuardianTracker={onOpenGuardianTracker}
             onOpenUssdModal={(dialString, title) => {
               setActiveUssdCode(dialString);
@@ -542,7 +603,16 @@ export const SafeHavenDashboard: React.FC<Props> = ({
             onRefreshLocation={refreshLiveLocation}
             onRequestStorage={requestStoragePersistence}
             onRequestNotifications={requestNotificationPermission}
+            onEditProfile={() => openSetup("profile")}
+            onManageIceContacts={() => openSetup("ice")}
+            onOpenLifeline={(dialString, title) => {
+              setActiveUssdCode(dialString);
+              setActiveUssdTitle(title);
+              setUssdModalOpen(true);
+            }}
             onShowToast={handleShowToast}
+            focusSection={focusedSetupSection}
+            onSectionSaved={handleSectionSaved}
           />
         )}
 
@@ -643,10 +713,26 @@ export const SafeHavenDashboard: React.FC<Props> = ({
         />
       </main>
 
+      <SurvivorSetupModal
+        isOpen={isSetupOpen}
+        section={setupSection}
+        isFirstTime={!uatProfile.onboardingCompleted}
+        profile={uatProfile}
+        onClose={() => setIsSetupOpen(false)}
+        onSave={async (updated) => {
+          await handleUpdateProfile(updated);
+          handleSectionSaved(setupSection, updated);
+        }}
+        permissionsStatus={permissionsStatus}
+        onRequestLocation={refreshLiveLocation}
+        onRequestStorage={requestStoragePersistence}
+        onRequestNotifications={requestNotificationPermission}
+      />
+
       {/* Bottom Navigation */}
       <nav className="bg-slate-900 border-t border-slate-800 p-2 pb-safe flex justify-around sticky bottom-0">
         <button
-          onClick={() => setActiveTab("sos")}
+          onClick={() => requestTab("sos")}
           className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-bold transition-colors ${
             activeTab === "sos" ? "text-rose-400 bg-rose-500/10" : "text-slate-400 hover:text-white"
           }`}
@@ -656,7 +742,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab("tcc")}
+          onClick={() => requestTab("tcc")}
           className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-bold transition-colors ${
             activeTab === "tcc" ? "text-amber-400 bg-amber-500/10" : "text-slate-400 hover:text-white"
           }`}
@@ -666,7 +752,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab("vault")}
+          onClick={() => requestTab("vault")}
           className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-bold transition-colors ${
             activeTab === "vault" ? "text-amber-400 bg-amber-500/10" : "text-slate-400 hover:text-white"
           }`}
@@ -676,7 +762,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab("plan")}
+          onClick={() => requestTab("plan")}
           className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-bold transition-colors ${
             activeTab === "plan" ? "text-amber-400 bg-amber-500/10" : "text-slate-400 hover:text-white"
           }`}
@@ -687,7 +773,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
 
         <button
           data-testid="tab-feedback"
-          onClick={() => setActiveTab("feedback")}
+          onClick={() => requestTab("feedback")}
           className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-bold transition-colors ${
             activeTab === "feedback" ? "text-amber-400 bg-amber-500/10" : "text-slate-400 hover:text-white"
           }`}

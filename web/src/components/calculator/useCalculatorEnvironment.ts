@@ -16,12 +16,21 @@ import {
   getUatProfile,
   UatProfile,
 } from "../../services/uatProfileService";
+import {
+  getCachedLiveLocation,
+  getLiveLocation,
+  LiveLocation,
+} from "../../services/liveLocationService";
 
 export function useCalculatorEnvironment() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
-  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [scrollDirection, setScrollDirection] = useState<"up" | "down">("down");
   const [uatProfile, setUatProfileState] = useState<UatProfile>(getUatProfile);
+  const [liveLocation, setLiveLocation] = useState<LiveLocation | null>(getCachedLiveLocation);
+  const [locationStatus, setLocationStatus] = useState<"idle" | "locating" | "ready" | "unavailable">(
+    getCachedLiveLocation() ? "ready" : "idle"
+  );
 
   const [loadshedding, setLoadshedding] = useState<LoadsheddingInfo>({
     stage: 0,
@@ -44,14 +53,38 @@ export function useCalculatorEnvironment() {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (typeof window !== "undefined") setShowBackToTop(window.scrollY > 280);
+      if (typeof window !== "undefined") setScrollDirection(window.scrollY > 280 ? "up" : "down");
     };
+    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const scrollToTop = () => {
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  const scrollToBoundary = () => {
+    if (typeof window === "undefined") return;
+    window.scrollTo({
+      top: scrollDirection === "down" ? document.documentElement.scrollHeight : 0,
+      behavior: "smooth",
+    });
+  };
+
+  const refreshLiveLocation = async () => {
+    setLocationStatus("locating");
+    try {
+      const location = await getLiveLocation({ timeoutMs: 8000, highAccuracy: false });
+      setLiveLocation(location);
+      setLocationStatus("ready");
+      return location;
+    } catch {
+      const cached = getCachedLiveLocation();
+      if (cached) {
+        setLiveLocation(cached);
+        setLocationStatus("ready");
+        return cached;
+      }
+      setLocationStatus("unavailable");
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -65,6 +98,7 @@ export function useCalculatorEnvironment() {
       getDeviceTelemetry().then(setTelemetry).catch(() => {});
     };
     updateTelemetry();
+    refreshLiveLocation();
 
     fetchLiveLoadshedding().then(setLoadshedding).catch(() => {});
     const loadsheddingInterval = setInterval(() => {
@@ -93,10 +127,13 @@ export function useCalculatorEnvironment() {
   return {
     currentTime,
     theme,
-    showBackToTop,
-    scrollToTop,
+    scrollDirection,
+    scrollToBoundary,
     loadshedding,
     telemetry,
     uatProfile,
+    liveLocation,
+    locationStatus,
+    refreshLiveLocation,
   };
 }

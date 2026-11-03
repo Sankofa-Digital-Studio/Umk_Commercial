@@ -60,6 +60,16 @@ serve(async (req: Request) => {
 
     const payload: SOSRequest = await req.json();
 
+    const configuredAppUrl = Deno.env.get("PUBLIC_APP_URL")?.trim();
+    const requestOrigin = req.headers.get("origin")?.trim();
+    const appUrlCandidate = configuredAppUrl || requestOrigin || "";
+    const appUrl = /^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(appUrlCandidate)
+      ? appUrlCandidate.replace(/\/$/, "")
+      : "";
+    const responderToken = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+    const responderUrl = appUrl ? `${appUrl}/?track=${encodeURIComponent(responderToken)}` : "";
+
     // 1. Fetch user's registered ICE guardians
     const { data: guardians, error: guardiansError } = await supabaseAdmin
       .from("guardians")
@@ -88,7 +98,8 @@ serve(async (req: Request) => {
       "I am in imminent danger and require immediate emergency assistance.",
       "",
       `• CURRENT AREA: ${areaName}`,
-      `• LIVE 72-HR LOCATION BEACON: ${mapsUrl}`,
+      `• LAST REPORTED LOCATION: ${mapsUrl}`,
+      `• LIVE 72-HR RESPONDER CONSOLE: ${responderUrl || "Secure link temporarily unavailable"}`,
       `• GOOGLE FIND MY DEVICE: ${findMyDeviceUrl}`,
       `• DEVICE BATTERY: ${batteryInfo}`,
       `• HANDSET: ${payload.deviceModel || "Mobile Handset"}`,
@@ -111,12 +122,18 @@ serve(async (req: Request) => {
         is_charging: payload.isCharging,
         device_model: payload.deviceModel,
         distress_message: baseDistressMessage,
+        responder_token: responderToken,
+        expires_at: expiresAt,
       })
       .select()
       .single();
 
     if (beaconError) {
       console.error("Error creating beacon record:", beaconError);
+      return new Response(JSON.stringify({ error: "Unable to create a secure SOS beacon" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const dispatchedChannels: string[] = [];
@@ -193,6 +210,8 @@ serve(async (req: Request) => {
       JSON.stringify({
         success: true,
         beaconId: beacon?.id,
+        responderUrl: responderUrl || null,
+        expiresAt,
         guardianCount: activeGuardians.length,
         dispatchedCount,
         dispatchedChannels,

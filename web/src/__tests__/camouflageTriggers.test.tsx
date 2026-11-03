@@ -9,7 +9,10 @@ import * as supabaseService from '../services/supabase';
 vi.mock('../services/supabase', () => ({
   dispatchServerSos: vi.fn().mockResolvedValue({ success: true }),
   vaultIncident: vi.fn().mockResolvedValue({ success: true }),
-  getOrCreateAnonymousSession: vi.fn().mockResolvedValue({ access_token: 'mock-token' }),
+  getOrCreateAnonymousSession: vi.fn().mockResolvedValue({
+    access_token: 'mock-token',
+    user: { id: 'test-anonymous-user' },
+  }),
   supabase: {
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
@@ -343,7 +346,7 @@ describe('Camouflage Secret Unlock & Duress Emergency Triggers', () => {
           expect.objectContaining({
             isDuress: true,
             areaName: 'Duress Beacon (Prepaid Portal)',
-            userId: 'bebd4ef7-3f99-48d7-9e82-a1d85bfaaecd',
+            userId: 'test-anonymous-user',
             channels: expect.arrayContaining(['WHATSAPP', 'SMS', 'EMAIL', 'INSTAGRAM', 'FACEBOOK', 'TIKTOK'])
           })
         );

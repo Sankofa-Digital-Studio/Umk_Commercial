@@ -12,7 +12,7 @@
  * - Offline Outbox Queue (tamper-evident fallback)
  */
 
-import { dispatchServerSos } from "./supabase";
+import { dispatchServerSos, getOrCreateAnonymousSession } from "./supabase";
 import { getDeviceTelemetry } from "./deviceTelemetry";
 import {
   getUatProfile,
@@ -194,7 +194,11 @@ export async function executeSilentDuressSos(options?: {
   beaconToken?: string;
 }): Promise<DuressDispatchReport> {
   const profile: UatProfile = getUatProfile();
-  const userId = options?.userId || profile.userId || "bebd4ef7-3f99-48d7-9e82-a1d85bfaaecd";
+  const session = options?.userId || profile.userId ? null : await getOrCreateAnonymousSession();
+  const userId = options?.userId || profile.userId || session?.user?.id;
+  if (!userId) {
+    throw new Error("A secure user session is required before dispatching a duress SOS.");
+  }
   const areaName = options?.areaName || "Duress Beacon (Prepaid Portal)";
   const beaconToken = options?.beaconToken || "duress_9999_beacon";
 

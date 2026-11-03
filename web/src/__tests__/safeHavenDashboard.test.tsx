@@ -20,6 +20,11 @@ vi.mock('../services/supabase', () => ({
   }
 }));
 
+vi.mock('../services/liveBeaconService', () => ({
+  loadActiveSosBeacon: vi.fn(() => new Promise(() => {})),
+  buildEphemeralResponderLink: vi.fn().mockReturnValue(null),
+}));
+
 describe('SafeHavenDashboard Component', () => {
   const mockOnPanicLock = vi.fn();
 
@@ -41,16 +46,30 @@ describe('SafeHavenDashboard Component', () => {
   });
 
   describe('SOS Emergency Tab', () => {
-    it('displays armed SOS button and national lifelines by default', () => {
+    it('displays the primary SOS view and keeps supporting lifelines closed by default', () => {
       render(<SafeHavenDashboard onPanicLock={mockOnPanicLock} />);
 
       expect(screen.getByText(/EMERGENCY DISTRESS BEACON/i)).toBeInTheDocument();
       expect(screen.getByText(/HOLD SOS/i)).toBeInTheDocument();
 
-      // Check National Lifelines rendered
+      const lifelinesToggle = screen.getByRole('button', { name: /Direct Emergency Lifelines/i });
+      expect(lifelinesToggle).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(lifelinesToggle);
       expect(screen.getByText('National GBV Command Centre')).toBeInTheDocument();
       expect(screen.getByText('SAPS Emergency Services')).toBeInTheDocument();
       expect(screen.getByText('Childline South Africa')).toBeInTheDocument();
+    });
+
+    it('opens toll-free lifelines inside Safe Haven before launching the phone dialler', () => {
+      render(<SafeHavenDashboard onPanicLock={mockOnPanicLock} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /Direct Emergency Lifelines/i }));
+      fireEvent.click(screen.getByText('National GBV Command Centre').closest('div')!);
+
+      expect(screen.getByText(/In-app lifeline contact/i)).toBeInTheDocument();
+      expect(screen.getAllByText('0800428428').length).toBeGreaterThan(0);
+      expect(screen.getByText(/Safe Haven Active/i)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Open phone dialler/i })).toHaveAttribute('href', 'tel:0800428428');
     });
 
     it('arms SOS and allows canceling before countdown finishes', () => {

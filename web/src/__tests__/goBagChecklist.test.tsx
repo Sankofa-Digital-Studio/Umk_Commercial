@@ -9,8 +9,18 @@ describe("EscapeGoBagChecklist Component", () => {
     vi.restoreAllMocks();
   });
 
+  const openChecklist = () => {
+    const accordion = screen.getByRole("button", { name: /Escape 'Go-Bag' Checklist/i });
+    expect(accordion).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(accordion);
+    expect(accordion).toHaveAttribute("aria-expanded", "true");
+    return accordion;
+  };
+
   it("renders the 8 core South African emergency escape items", () => {
     render(<EscapeGoBagChecklist />);
+
+    openChecklist();
 
     expect(screen.getByText("Escape 'Go-Bag' Checklist")).toBeDefined();
     expect(screen.getByText("Prepared items hidden in a safe location")).toBeDefined();
@@ -27,6 +37,8 @@ describe("EscapeGoBagChecklist Component", () => {
   it("toggles item checked state and updates ready count and progress", () => {
     render(<EscapeGoBagChecklist />);
 
+    openChecklist();
+
     const itemLabel = screen.getByText("South African Smart ID Card or Green Barcoded ID Book");
     expect(screen.getByText("0/8 Ready (0%)")).toBeDefined();
 
@@ -42,6 +54,8 @@ describe("EscapeGoBagChecklist Component", () => {
 
   it("allows adding and removing custom escape items", () => {
     render(<EscapeGoBagChecklist />);
+
+    openChecklist();
 
     // Click Add Custom Go-Bag Item
     const addBtn = screen.getByText("Add Custom Go-Bag Item");
@@ -61,16 +75,16 @@ describe("EscapeGoBagChecklist Component", () => {
     render(<EscapeGoBagChecklist />);
 
     const accordionBtn = screen.getByRole("button", { name: /Escape 'Go-Bag' Checklist/i });
-    expect(accordionBtn.getAttribute("aria-expanded")).toBe("true");
-
-    // Click to collapse
-    fireEvent.click(accordionBtn);
     expect(accordionBtn.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByText("South African Smart ID Card or Green Barcoded ID Book")).toBeNull();
 
-    // Click to expand again
+    // Click to expand
     fireEvent.click(accordionBtn);
     expect(accordionBtn.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("South African Smart ID Card or Green Barcoded ID Book")).toBeDefined();
+
+    // Click to collapse again
+    fireEvent.click(accordionBtn);
+    expect(accordionBtn.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("South African Smart ID Card or Green Barcoded ID Book")).toBeNull();
   });
 });

@@ -63,31 +63,8 @@ export const Form2CourtRecordViewerModal: React.FC<Props> = ({
   const [isDrawing, setIsDrawing] = useState(false);
 
   const profile = getUatProfile();
-  const hasProfileData = Boolean(profile.personal.fullName && profile.personal.nationalId);
-
-  // Fallback default sample incident if none provided
-  const activeIncidents =
-    incidents.length > 0
-      ? incidents
-      : [
-          {
-            id: "inc-default-1",
-            type: "Verbal & Threat of Harm",
-            severity: 3,
-            perpetrator: "Partner",
-            location: "Shared residence (living room)",
-            date: new Date().toLocaleString("en-ZA", {
-              dateStyle: "medium",
-              timeStyle: "short",
-            }),
-            statement:
-              "The respondent subjected me to severe intimidation, stating they would cause physical harm and seize residence keys. Previous warnings ignored.",
-            injuriesOrImpact: "Severe psychological distress, fear for safety",
-            witnesses: "Family member present in adjacent room",
-            isEncrypted: !isVaultUnlocked,
-            sha256Checksum: "9b4f738a1099238e8bc2140d39e3845b5930219c8f00129ad89bcf21798e1042",
-          },
-        ];
+  const hasProfileData = Boolean(profile.personal.fullName && profile.personal.saIdNumber);
+  const activeIncidents = incidents;
 
   const currentRecord = activeIncidents[currentIndex] || activeIncidents[0];
 
@@ -147,6 +124,7 @@ export const Form2CourtRecordViewerModal: React.FC<Props> = ({
   };
 
   const handleExportPdf = async () => {
+    if (!currentRecord) return;
     setIsExportingPdf(true);
     try {
       const result = await exportOrShareEctaAffidavitPdf({
@@ -164,7 +142,7 @@ export const Form2CourtRecordViewerModal: React.FC<Props> = ({
         witnesses: isVaultUnlocked
           ? currentRecord.witnesses || "Confidential"
           : "[Encrypted]",
-        sha256Checksum: currentRecord.sha256Checksum || "a4f89d31ec88910b7b25c4ef1823901a",
+        sha256Checksum: currentRecord.sha256Checksum || "",
         timestamp: currentRecord.date,
         deponentName: includeParticulars ? profile.personal.fullName : "Confidential Applicant",
         signatureDataUrl: signatureDataUrl || undefined,
@@ -181,6 +159,30 @@ export const Form2CourtRecordViewerModal: React.FC<Props> = ({
   };
 
   if (!isOpen) return null;
+
+  if (!currentRecord) {
+    return (
+      <div
+        data-testid="form2-record-viewer-modal"
+        className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+      >
+        <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-6 text-center shadow-2xl">
+          <FileText className="w-10 h-10 mx-auto text-slate-500" aria-hidden="true" />
+          <h2 className="mt-3 text-base font-bold text-white">No survivor records yet</h2>
+          <p className="mt-2 text-sm text-slate-400">
+            Add an incident in the encrypted evidence vault before preparing a Form 2 record.
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-5 rounded-xl bg-amber-400 px-5 py-2.5 text-sm font-bold text-slate-950"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

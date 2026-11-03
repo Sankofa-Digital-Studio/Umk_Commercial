@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ShieldCheck,
   Smartphone,
@@ -11,8 +11,8 @@ import {
 
 export interface UtilityCheatSheetModalProps {
   isOpen: boolean;
-  onClose: () => void;
-  onUnlockSafeHaven?: () => void;
+  onClose: (didClose?: boolean) => void;
+  onUnlockSafeHaven?: (source?: "direct" | "covert") => void;
 }
 
 export const UtilityCheatSheetModal: React.FC<UtilityCheatSheetModalProps> = ({
@@ -21,6 +21,15 @@ export const UtilityCheatSheetModal: React.FC<UtilityCheatSheetModalProps> = ({
   onUnlockSafeHaven,
 }) => {
   const [downloadStarted, setDownloadStarted] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose(true);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -58,8 +67,13 @@ export const UtilityCheatSheetModal: React.FC<UtilityCheatSheetModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="consumer-portal-title"
+      data-testid="consumer-portal-modal"
+      onClick={() => onClose(true)}
     >
-      <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+      <div
+        className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+        onClick={(event) => event.stopPropagation()}
+      >
         {/* Modal header */}
         <div className="bg-slate-800 border-b border-slate-700 px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -78,7 +92,7 @@ export const UtilityCheatSheetModal: React.FC<UtilityCheatSheetModalProps> = ({
             </a>
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => onClose(true)}
               className="text-slate-300 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
               aria-label="Close consumer portal modal"
             >
@@ -152,8 +166,8 @@ export const UtilityCheatSheetModal: React.FC<UtilityCheatSheetModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    onClose();
-                    onUnlockSafeHaven();
+                    onClose(true);
+                    onUnlockSafeHaven("direct");
                   }}
                   className="text-[10px] text-sky-400 hover:text-sky-300 underline font-normal"
                 >
@@ -179,7 +193,7 @@ export const UtilityCheatSheetModal: React.FC<UtilityCheatSheetModalProps> = ({
         <div className="border-t border-slate-800 px-5 py-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => onClose(true)}
             className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer active:scale-95"
           >
             Close Portal

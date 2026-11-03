@@ -47,7 +47,7 @@ export const AndroidClockWidget: React.FC<AndroidClockWidgetProps> = ({ onUnlock
   };
 
   const cachedGps = getCachedLiveLocation();
-  const locationLabel = cachedGps?.areaName ? cachedGps.areaName.split("/")[0].trim() : "Johannesburg";
+  const locationLabel = cachedGps?.areaName ? cachedGps.areaName.split("/")[0].trim() : "Location off";
 
   return (
     <div
