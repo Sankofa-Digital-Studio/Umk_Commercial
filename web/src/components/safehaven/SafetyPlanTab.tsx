@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Share2,
   AlertTriangle,
@@ -37,7 +37,7 @@ import { SouthAfricanLegalRights } from "../SouthAfricanLegalRights";
 
 interface SafetyPlanTabProps {
   uatProfile: UatProfile;
-  onUpdateProfile: (updated: UatProfile) => void;
+  onUpdateProfile: (updated: UatProfile) => Promise<void>;
   isUatMode: boolean;
   onToggleUat: () => void;
   permissionsStatus: {
@@ -53,6 +53,8 @@ interface SafetyPlanTabProps {
   onManageIceContacts: () => void;
   onOpenLifeline: (dialString: string, title: string) => void;
   onShowToast?: (type: "success" | "error" | "warning" | "info", title: string, message: string) => void;
+  focusSection?: "profile" | "ice" | "permissions" | null;
+  onSectionSaved?: (section: "profile" | "ice" | "permissions", profile: UatProfile) => void;
 }
 
 export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
@@ -69,12 +71,15 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
   onManageIceContacts,
   onOpenLifeline,
   onShowToast,
+  focusSection,
+  onSectionSaved,
 }) => {
-  const [isProfileExpanded, setIsProfileExpanded] = useState<boolean>(true);
-  const [isIceContactsExpanded, setIsIceContactsExpanded] = useState<boolean>(true);
+  const [isProfileExpanded, setIsProfileExpanded] = useState<boolean>(false);
+  const [isIceContactsExpanded, setIsIceContactsExpanded] = useState<boolean>(false);
   const [isPermissionsExpanded, setIsPermissionsExpanded] = useState<boolean>(false);
   const [isSocialsExpanded, setIsSocialsExpanded] = useState<boolean>(false);
   const [showAddContactForm, setShowAddContactForm] = useState<boolean>(false);
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [profileSaveMessage, setProfileSaveMessage] = useState<string | null>(null);
 
   // Notification Safety Preferences State
@@ -109,7 +114,15 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
   const [socialInstagram, setSocialInstagram] = useState(uatProfile.socials.instagramHandle || "");
   const [socialFacebook, setSocialFacebook] = useState(uatProfile.socials.facebookProfile || "");
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!focusSection) return;
+    setIsProfileExpanded(focusSection === "profile");
+    setIsIceContactsExpanded(focusSection === "ice");
+    setIsPermissionsExpanded(focusSection === "permissions");
+    window.setTimeout(() => document.getElementById(`setup-${focusSection}`)?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 0);
+  }, [focusSection]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     const updated: UatProfile = {
       ...uatProfile,
@@ -121,33 +134,50 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
         medicalConditions: medicalConditions.trim(),
       },
     };
-    onUpdateProfile(updated);
+    try {
+      await onUpdateProfile(updated);
+    } catch (error) {
+      if (onShowToast) onShowToast("error", "Profile Not Saved", error instanceof Error ? error.message : "Secure save failed.");
+      return;
+    }
     const msg = "Survivor emergency profile saved securely.";
     setProfileSaveMessage(msg);
     if (onShowToast) onShowToast("success", "Profile Saved", msg);
+    setIsProfileExpanded(false);
+    onSectionSaved?.("profile", updated);
     setTimeout(() => setProfileSaveMessage(null), 4000);
   };
 
-  const handleAddIceContact = (e: React.FormEvent) => {
+  const handleAddIceContact = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newContactName.trim() || !newContactPhone.trim()) return;
 
+    const wasEditing = Boolean(editingContactId);
     const newContact: IceContact = {
-      id: crypto.randomUUID(),
+      id: editingContactId || crypto.randomUUID(),
       name: newContactName.trim(),
       relationship: newContactRel,
       phone: newContactPhone.trim(),
       secondaryPhone: newContactSecondaryPhone.trim() || undefined,
       email: newContactEmail.trim() || "",
       instagramHandle: newContactInstagram.trim() || undefined,
-      isPrimary: uatProfile.contacts.length === 0,
+      isPrimary: editingContactId
+        ? Boolean(uatProfile.contacts.find((contact) => contact.id === editingContactId)?.isPrimary)
+        : uatProfile.contacts.length === 0,
     };
 
     const updated: UatProfile = {
       ...uatProfile,
-      contacts: [...uatProfile.contacts, newContact],
+      contacts: editingContactId
+        ? uatProfile.contacts.map((contact) => contact.id === editingContactId ? newContact : contact)
+        : [...uatProfile.contacts, newContact],
     };
-    onUpdateProfile(updated);
+    try {
+      await onUpdateProfile(updated);
+    } catch (error) {
+      if (onShowToast) onShowToast("error", "ICE Contact Not Saved", error instanceof Error ? error.message : "Secure save failed.");
+      return;
+    }
 
     setNewContactName("");
     setNewContactPhone("");
@@ -155,18 +185,33 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
     setNewContactEmail("");
     setNewContactInstagram("");
     setShowAddContactForm(false);
+    setEditingContactId(null);
+    setIsIceContactsExpanded(false);
 
     if (onShowToast) {
-      onShowToast("success", "ICE Contact Added", `${newContact.name} registered as emergency contact.`);
+      onShowToast("success", wasEditing ? "ICE Contact Updated" : "ICE Contact Added", `${newContact.name} saved as an emergency contact.`);
     }
+    onSectionSaved?.("ice", updated);
   };
 
-  const handleDeleteContact = (id: string) => {
+  const handleEditContact = (contact: IceContact) => {
+    setEditingContactId(contact.id);
+    setNewContactName(contact.name);
+    setNewContactRel(contact.relationship);
+    setNewContactPhone(contact.phone);
+    setNewContactSecondaryPhone(contact.secondaryPhone || "");
+    setNewContactEmail(contact.email || "");
+    setNewContactInstagram(contact.instagramHandle || "");
+    setShowAddContactForm(true);
+    setIsIceContactsExpanded(true);
+  };
+
+  const handleDeleteContact = async (id: string) => {
     const updated: UatProfile = {
       ...uatProfile,
       contacts: uatProfile.contacts.filter((c) => c.id !== id),
     };
-    onUpdateProfile(updated);
+    await onUpdateProfile(updated);
     if (onShowToast) {
       onShowToast("info", "Contact Removed", "ICE contact deleted from registry.");
     }
@@ -277,7 +322,7 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
       )}
 
       {/* 1. SURVIVOR EMERGENCY PROFILE */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
+      <div id="setup-profile" data-testid="profile-expansion-card" className="scroll-mt-24 bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
         <button
           type="button"
           onClick={() => setIsProfileExpanded((prev) => !prev)}
@@ -363,7 +408,7 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
       </div>
 
       {/* 2. 5 ICE GUARDIANS SECTION */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
+      <div id="setup-ice" data-testid="ice-expansion-card" className="scroll-mt-24 bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
         <button
           type="button"
           onClick={() => setIsIceContactsExpanded((prev) => !prev)}
@@ -435,14 +480,14 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
                         </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteContact(contact.id)}
-                      className="text-slate-500 hover:text-rose-400 p-1"
-                      title="Remove contact"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={() => handleEditContact(contact)} className="text-slate-500 hover:text-sky-400 p-1" aria-label={`Edit ${contact.name}`}>
+                        <span className="text-[10px] font-bold">Edit</span>
+                      </button>
+                      <button type="button" onClick={() => void handleDeleteContact(contact.id)} className="text-slate-500 hover:text-rose-400 p-1" title="Remove contact">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex gap-2 pt-1">
@@ -474,7 +519,7 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
             {/* Add Contact Modal / Subform */}
             {showAddContactForm && (
               <form onSubmit={handleAddIceContact} className="bg-slate-950 p-4 rounded-xl border border-amber-500/40 space-y-3">
-                <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider">New ICE Guardian Details</h4>
+                <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider">{editingContactId ? "Edit ICE Guardian Details" : "New ICE Guardian Details"}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div>
                     <label className="block text-slate-400 mb-1 text-[11px]">Full Name</label>
@@ -552,11 +597,14 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
                     type="submit"
                     className="flex-1 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs transition-colors"
                   >
-                    Save ICE Guardian
+                    {editingContactId ? "Update ICE Guardian" : "Save ICE Guardian"}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowAddContactForm(false)}
+                    onClick={() => {
+                      setShowAddContactForm(false);
+                      setEditingContactId(null);
+                    }}
                     className="px-3 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs"
                   >
                     Cancel
@@ -569,7 +617,7 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
       </div>
 
       {/* 3. HARDWARE & PERMISSIONS READINESS */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
+      <div id="setup-permissions" data-testid="permissions-expansion-card" className="scroll-mt-24 bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
         <button
           type="button"
           onClick={() => setIsPermissionsExpanded((prev) => !prev)}
@@ -837,6 +885,23 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
                 </label>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={async () => {
+                const completed = { ...uatProfile, onboardingCompleted: true };
+                try {
+                  await onUpdateProfile(completed);
+                  setIsPermissionsExpanded(false);
+                  onSectionSaved?.("permissions", completed);
+                  onShowToast?.("success", "Readiness Saved", "The three-step survivor setup is complete.");
+                } catch (error) {
+                  onShowToast?.("error", "Readiness Not Saved", error instanceof Error ? error.message : "Secure save failed.");
+                }
+              }}
+              className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-xs font-black text-white hover:bg-emerald-500"
+            >
+              Save readiness and complete Step 3
+            </button>
           </div>
         )}
       </div>
@@ -937,6 +1002,19 @@ export const SafetyPlanTab: React.FC<SafetyPlanTabProps> = ({
           </div>
         )}
       </div>
+
+      <button
+        type="button"
+        aria-label="Back to top"
+        onClick={() => {
+          const scrollRegion = document.getElementById("safe-haven-scroll-region");
+          if (scrollRegion) scrollRegion.scrollTo({ top: 0, behavior: "smooth" });
+          else window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        className="fixed bottom-20 right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-sky-400/40 bg-slate-900/95 text-sky-300 shadow-xl backdrop-blur hover:bg-slate-800"
+      >
+        <ChevronUp className="h-5 w-5" />
+      </button>
     </div>
   );
 };

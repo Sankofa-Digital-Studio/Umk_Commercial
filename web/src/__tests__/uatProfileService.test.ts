@@ -4,6 +4,9 @@ import {
   EMPTY_UAT_PROFILE,
   getUatProfile,
   loadUatProfile,
+  getSurvivorSetupStep,
+  isMeaningfulIceContact,
+  isMeaningfulSurvivorProfile,
 } from "../services/uatProfileService";
 
 describe("Survivor profile persistence boundary", () => {
@@ -30,5 +33,32 @@ describe("Survivor profile persistence boundary", () => {
     expect(localStorage.getItem("pcalc_uat_profile")).toBeNull();
     expect(localStorage.getItem("umkhuseli_uat_ice_profile")).toBeNull();
     expect(localStorage.getItem("pcalc_survivor_onboarded")).toBeNull();
+  });
+
+  it("rejects untouched/default profile and ICE values when resuming setup", () => {
+    const defaultLike = {
+      ...EMPTY_UAT_PROFILE,
+      personal: { fullName: "Survivor", safeWord: "N/A" },
+      contacts: [{ id: "1", name: "Guardian", relationship: "Friend", phone: "0000000000", email: "", isPrimary: true }],
+    };
+
+    expect(isMeaningfulSurvivorProfile(defaultLike)).toBe(false);
+    expect(isMeaningfulIceContact(defaultLike.contacts[0])).toBe(false);
+    expect(getSurvivorSetupStep(defaultLike)).toBe("profile");
+  });
+
+  it("resumes the first incomplete persisted step and unlocks only after step three", () => {
+    const profileSaved = {
+      ...EMPTY_UAT_PROFILE,
+      personal: { fullName: "Lerato M", safeWord: "LAVENDER" },
+    };
+    expect(getSurvivorSetupStep(profileSaved)).toBe("ice");
+
+    const iceSaved = {
+      ...profileSaved,
+      contacts: [{ id: "1", name: "Thandi M", relationship: "Sister", phone: "0821234567", email: "", isPrimary: true }],
+    };
+    expect(getSurvivorSetupStep(iceSaved)).toBe("permissions");
+    expect(getSurvivorSetupStep({ ...iceSaved, onboardingCompleted: true })).toBeNull();
   });
 });

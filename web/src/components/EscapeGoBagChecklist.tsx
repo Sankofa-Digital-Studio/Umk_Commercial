@@ -54,7 +54,7 @@ export const DEFAULT_GO_BAG_ITEMS: GoBagItem[] = [
 ];
 
 export const EscapeGoBagChecklist: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<GoBagItem[]>(() => {
     if (typeof window !== "undefined") {
       try {

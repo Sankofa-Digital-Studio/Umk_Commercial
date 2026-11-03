@@ -6,7 +6,7 @@ interface SouthAfricanLegalRightsProps {
 }
 
 export const SouthAfricanLegalRights: React.FC<SouthAfricanLegalRightsProps> = ({ onOpenLifeline }) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div

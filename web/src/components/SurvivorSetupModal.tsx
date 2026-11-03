@@ -53,7 +53,7 @@ export const SurvivorSetupModal: React.FC<Props> = ({
   }, [isOpen, section, profile]);
 
   const currentIndex = SECTION_ORDER.indexOf(activeSection);
-  const canCompleteProfile = draft.personal.fullName.trim().length >= 2;
+  const canCompleteProfile = draft.personal.fullName.trim().length >= 2 && (draft.personal.safeWord || "").trim().length >= 3;
   const canCompleteIce = draft.contacts.length > 0;
   const faceSequence = useMemo(
     () => Object.entries(DISGUISE_SEQUENCE_MAP).find(([, face]) => face === draft.preferredDisguise)?.[0],
@@ -79,7 +79,7 @@ export const SurvivorSetupModal: React.FC<Props> = ({
 
   const saveAndContinue = async () => {
     if (activeSection === "profile" && !canCompleteProfile) {
-      setError("Enter a name or safe alias before continuing.");
+      setError("Enter a non-default name or safe alias and a private safe word before continuing.");
       return;
     }
     if (activeSection === "ice" && !canCompleteIce) {
@@ -93,11 +93,9 @@ export const SurvivorSetupModal: React.FC<Props> = ({
       : draft;
     if (!(await persist(nextDraft))) return;
 
-    if (isFirstTime && !isFinalStep) {
-      setActiveSection(SECTION_ORDER[currentIndex + 1]);
-    } else {
-      onClose();
-    }
+    // Close after every successful remote write. The dashboard completion gate
+    // re-evaluates persisted state and deliberately routes the next step.
+    onClose();
   };
 
   const addContact = () => {
@@ -145,9 +143,11 @@ export const SurvivorSetupModal: React.FC<Props> = ({
             </p>
             <h2 id="survivor-setup-title" className="mt-1 text-lg font-black text-white">{title}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close setup" className="rounded-full p-2 text-slate-400 hover:bg-slate-800 hover:text-white">
-            <X className="h-5 w-5" />
-          </button>
+          {!isFirstTime && (
+            <button type="button" onClick={onClose} aria-label="Close setup" className="rounded-full p-2 text-slate-400 hover:bg-slate-800 hover:text-white">
+              <X className="h-5 w-5" />
+            </button>
+          )}
         </header>
 
         {isFirstTime && (

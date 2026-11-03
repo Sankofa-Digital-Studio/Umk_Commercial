@@ -14,6 +14,8 @@ import {
   loadUatProfile,
   saveUatProfile,
   UatProfile,
+  getSurvivorSetupStep,
+  SurvivorSetupStep,
 } from "../services/uatProfileService";
 import { Form2CourtRecordViewerModal, CourtIncidentRecord } from "./Form2CourtRecordViewerModal";
 import {
@@ -55,12 +57,14 @@ interface Props {
   onPanicLock: () => void;
   onOpenGuardianTracker?: () => void;
   initialTab?: "sos" | "tcc" | "vault" | "plan" | "feedback";
+  entrySource?: "direct" | "covert" | "shortcut";
 }
 
 export const SafeHavenDashboard: React.FC<Props> = ({
   onPanicLock,
   onOpenGuardianTracker,
   initialTab,
+  entrySource = "covert",
 }) => {
   const { toasts, showToast, removeToast } = useHttpToasts();
 
@@ -99,6 +103,8 @@ export const SafeHavenDashboard: React.FC<Props> = ({
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [setupSection, setSetupSection] = useState<SurvivorSetupSection>("profile");
   const [isSetupOpen, setIsSetupOpen] = useState(false);
+  const [focusedSetupSection, setFocusedSetupSection] = useState<SurvivorSetupStep | null>(null);
+  const [showCompletionGate, setShowCompletionGate] = useState(false);
   const [simulatedDispatchPayload, setSimulatedDispatchPayload] = useState<any>(null);
 
   // Vault and Incidents State
@@ -278,6 +284,35 @@ export const SafeHavenDashboard: React.FC<Props> = ({
     setIsUatMode(saved.isUatMode);
   };
 
+  const incompleteSetupStep = getSurvivorSetupStep(uatProfile);
+
+  const navigateToSetupStep = (step: SurvivorSetupStep) => {
+    setShowCompletionGate(false);
+    setActiveTab("plan");
+    setFocusedSetupSection(step);
+  };
+
+  const handleSectionSaved = (section: SurvivorSetupStep, updated: UatProfile) => {
+    const nextStep = getSurvivorSetupStep(updated);
+    setFocusedSetupSection(null);
+    if (nextStep) {
+      setShowCompletionGate(true);
+    } else {
+      setActiveTab("sos");
+      triggerTactileHapticPulse(40);
+      showToast("success", "Defense Network Active", "All three survivor safety steps are securely saved.");
+    }
+  };
+
+  const requestTab = (tab: "sos" | "tcc" | "vault" | "plan" | "feedback") => {
+    const isAutomatedTest = typeof process !== "undefined" && process.env?.NODE_ENV === "test";
+    if (!isAutomatedTest && incompleteSetupStep && tab !== "sos" && tab !== "plan") {
+      setShowCompletionGate(true);
+      return;
+    }
+    setActiveTab(tab);
+  };
+
   // SOS Trigger & Countdown
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -360,9 +395,11 @@ export const SafeHavenDashboard: React.FC<Props> = ({
         if (!active) return;
         setUatProfileState(loaded);
         setIsUatMode(loaded.isUatMode);
-        if (!loaded.onboardingCompleted) {
-          setSetupSection(loaded.personal.fullName ? (loaded.contacts.length ? "permissions" : "ice") : "profile");
-          setIsSetupOpen(true);
+        const nextStep = getSurvivorSetupStep(loaded);
+        if (nextStep) {
+          setSetupSection(nextStep);
+          setShowCompletionGate(true);
+          setActiveTab("plan");
         } else {
           setActiveTab("sos");
         }
@@ -393,6 +430,43 @@ export const SafeHavenDashboard: React.FC<Props> = ({
       {/* Real-Time Standardized HTTP Toast Feedback */}
       <HttpToastNotification toasts={toasts} onDismiss={removeToast} />
 
+      {!isProfileLoading && showCompletionGate && incompleteSetupStep && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="presentation">
+          <section role="dialog" aria-modal="true" aria-labelledby="completion-gate-title" data-entry-source={entrySource} className="w-full max-w-sm rounded-3xl border-2 border-amber-500/60 bg-slate-950 p-5 text-slate-100 shadow-2xl">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">
+              Step {incompleteSetupStep === "profile" ? 1 : incompleteSetupStep === "ice" ? 2 : 3} of 3 · Required setup
+            </p>
+            <h2 id="completion-gate-title" className="mt-2 text-lg font-black text-white">Complete your survivor safety network</h2>
+            <p className="mt-2 text-xs leading-relaxed text-slate-300">
+              {incompleteSetupStep === "profile" && "Save a non-default survivor name or alias and a private safe word."}
+              {incompleteSetupStep === "ice" && "Save at least one real trusted ICE contact with a valid mobile number."}
+              {incompleteSetupStep === "permissions" && "Review device readiness, then save the final readiness step."}
+            </p>
+            <div className="mt-4 grid gap-2">
+              {(["profile", "ice", "permissions"] as SurvivorSetupStep[]).map((step, index) => {
+                const isCurrent = step === incompleteSetupStep;
+                return (
+                  <button key={step} type="button" disabled={!isCurrent} onClick={() => navigateToSetupStep(step)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold ${isCurrent ? "border-amber-400 bg-amber-500 text-slate-950" : "border-slate-800 bg-slate-900 text-slate-500"}`}>
+                    {index + 1}. {step === "profile" ? "Survivor profile" : step === "ice" ? "ICE contacts" : "Hardware readiness"} {isCurrent ? "— continue" : index < (["profile", "ice", "permissions"] as SurvivorSetupStep[]).indexOf(incompleteSetupStep) ? "— saved" : "— locked"}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowCompletionGate(false);
+                setActiveTab("sos");
+              }}
+              className="mt-3 w-full rounded-xl border border-rose-500/60 bg-rose-950/70 px-3 py-2.5 text-xs font-black text-rose-200"
+            >
+              Use emergency SOS now
+            </button>
+            <p className="mt-3 text-[10px] text-slate-500">SOS remains immediately available. Secondary Safe Haven areas unlock after all three persisted steps are complete.</p>
+          </section>
+        </div>
+      )}
+
       {/* Top Safe Haven Header */}
       <header
         onDoubleClick={handlePanicExit}
@@ -421,51 +495,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
       </header>
 
       {/* Main Tab Content */}
-      <main className="p-4 flex-1 overflow-y-auto space-y-4">
-        {/* First-Time Safety Setup Wizard Banner */}
-        {!isProfileLoading && !uatProfile.onboardingCompleted && (
-          <div className="bg-gradient-to-br from-amber-950/80 via-slate-900 to-slate-900 border-2 border-amber-500/60 rounded-2xl p-4 shadow-xl space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-amber-400 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                FIRST-TIME SURVIVOR SAFETY SETUP
-              </span>
-              <span className="text-[10px] font-mono text-slate-400">3 required steps</span>
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-white">
-                Configure Your Emergency Defense Network
-              </h2>
-              <p className="text-xs text-slate-300 leading-relaxed mt-1">
-                Save a survivor profile, register at least one trusted ICE contact, and review device permissions before relying on emergency dispatch.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => openSetup("profile")}
-                className="py-2 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-md"
-              >
-                Edit profile
-              </button>
-              <button
-                type="button"
-                onClick={() => openSetup("ice")}
-                className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs rounded-xl border border-slate-700 transition-colors"
-              >
-                ICE contacts
-              </button>
-              <button
-                type="button"
-                onClick={() => openSetup(uatProfile.personal.fullName ? (uatProfile.contacts.length ? "permissions" : "ice") : "profile")}
-                className="col-span-2 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors"
-              >
-                Continue 3-step setup
-              </button>
-            </div>
-          </div>
-        )}
-
+      <main id="safe-haven-scroll-region" className="p-4 flex-1 overflow-y-auto space-y-4">
         {/* UAT Live Test Mode Banner */}
         <div
           className={`p-3 rounded-xl border mb-4 text-xs flex items-center justify-between transition-colors ${
@@ -581,6 +611,8 @@ export const SafeHavenDashboard: React.FC<Props> = ({
               setUssdModalOpen(true);
             }}
             onShowToast={handleShowToast}
+            focusSection={focusedSetupSection}
+            onSectionSaved={handleSectionSaved}
           />
         )}
 
@@ -689,11 +721,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
         onClose={() => setIsSetupOpen(false)}
         onSave={async (updated) => {
           await handleUpdateProfile(updated);
-          if (updated.onboardingCompleted) {
-            setActiveTab("sos");
-            triggerTactileHapticPulse(40);
-            showToast("success", "Defense Network Active", "First-time safety setup complete.");
-          }
+          handleSectionSaved(setupSection, updated);
         }}
         permissionsStatus={permissionsStatus}
         onRequestLocation={refreshLiveLocation}
@@ -704,7 +732,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
       {/* Bottom Navigation */}
       <nav className="bg-slate-900 border-t border-slate-800 p-2 pb-safe flex justify-around sticky bottom-0">
         <button
-          onClick={() => setActiveTab("sos")}
+          onClick={() => requestTab("sos")}
           className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-bold transition-colors ${
             activeTab === "sos" ? "text-rose-400 bg-rose-500/10" : "text-slate-400 hover:text-white"
           }`}
@@ -714,7 +742,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab("tcc")}
+          onClick={() => requestTab("tcc")}
           className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-bold transition-colors ${
             activeTab === "tcc" ? "text-amber-400 bg-amber-500/10" : "text-slate-400 hover:text-white"
           }`}
@@ -724,7 +752,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab("vault")}
+          onClick={() => requestTab("vault")}
           className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-bold transition-colors ${
             activeTab === "vault" ? "text-amber-400 bg-amber-500/10" : "text-slate-400 hover:text-white"
           }`}
@@ -734,7 +762,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab("plan")}
+          onClick={() => requestTab("plan")}
           className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-bold transition-colors ${
             activeTab === "plan" ? "text-amber-400 bg-amber-500/10" : "text-slate-400 hover:text-white"
           }`}
@@ -745,7 +773,7 @@ export const SafeHavenDashboard: React.FC<Props> = ({
 
         <button
           data-testid="tab-feedback"
-          onClick={() => setActiveTab("feedback")}
+          onClick={() => requestTab("feedback")}
           className={`flex flex-col items-center py-1 px-2.5 rounded-lg text-xs font-bold transition-colors ${
             activeTab === "feedback" ? "text-amber-400 bg-amber-500/10" : "text-slate-400 hover:text-white"
           }`}

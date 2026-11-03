@@ -54,7 +54,7 @@ function municipalityForLocation(metro: string, province: string): MunicipalityT
 }
 
 interface Props {
-  onUnlockSafeHaven: () => void;
+  onUnlockSafeHaven: (source?: "direct" | "covert") => void;
   onDuressTrigger: () => void;
   onOpenBriefing?: () => void;
 }

@@ -12,7 +12,7 @@ import {
 export interface UtilityCheatSheetModalProps {
   isOpen: boolean;
   onClose: (didClose?: boolean) => void;
-  onUnlockSafeHaven?: () => void;
+  onUnlockSafeHaven?: (source?: "direct" | "covert") => void;
 }
 
 export const UtilityCheatSheetModal: React.FC<UtilityCheatSheetModalProps> = ({
@@ -167,7 +167,7 @@ export const UtilityCheatSheetModal: React.FC<UtilityCheatSheetModalProps> = ({
                   type="button"
                   onClick={() => {
                     onClose(true);
-                    onUnlockSafeHaven();
+                    onUnlockSafeHaven("direct");
                   }}
                   className="text-[10px] text-sky-400 hover:text-sky-300 underline font-normal"
                 >

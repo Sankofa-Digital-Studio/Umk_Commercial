@@ -41,6 +41,7 @@ export const App: React.FC = () => {
   const [activeDisguise, setActiveDisguiseState] = useState<DisguiseType>(getActiveDisguise);
   const [activeBeaconToken, setActiveBeaconToken] = useState<string>("beacon_72h_active");
   const [vaultSessionKey, setVaultSessionKey] = useState<number>(0);
+  const [safeHavenEntrySource, setSafeHavenEntrySource] = useState<"direct" | "covert" | "shortcut">("covert");
   const facadeSequenceRef = useRef<string>("");
   const facadeSequenceTimerRef = useRef<number | null>(null);
 
@@ -62,6 +63,11 @@ export const App: React.FC = () => {
   // Root Double-Tap Timing Reference
   const lastRootTapRef = useRef<number>(0);
 
+  const handleSafeHavenUnlock = (source: "direct" | "covert" = "covert") => {
+    setSafeHavenEntrySource(source);
+    setMode("SAFE_HAVEN");
+  };
+
   // Initialize theme mode on mount (class on <html>) & persistent storage & PWA actions
   useEffect(() => {
     applyTheme(getInitialTheme());
@@ -73,6 +79,7 @@ export const App: React.FC = () => {
       const action = params.get("action");
       if (action === "distress_hotline") {
         window.history.replaceState({}, document.title, window.location.pathname);
+        setSafeHavenEntrySource("shortcut");
         setMode("SAFE_HAVEN");
       } else if (action === "covert_sos") {
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -364,25 +371,25 @@ export const App: React.FC = () => {
         <>
           {activeDisguise === "DAILY_DEVOTIONAL" && (
             <DailyDevotionalFacade
-              onUnlockSafeHaven={() => setMode("SAFE_HAVEN")}
+              onUnlockSafeHaven={handleSafeHavenUnlock}
               onDuressTrigger={handleDuressTrigger}
             />
           )}
           {activeDisguise === "MUSIC_PLAYER" && (
             <CocoBongoMusicFacade
-              onUnlockSafeHaven={() => setMode("SAFE_HAVEN")}
+              onUnlockSafeHaven={handleSafeHavenUnlock}
               onDuressTrigger={handleDuressTrigger}
             />
           )}
           {activeDisguise === "ANDROID_LAUNCHER" && (
             <AndroidLauncherFacade
-              onUnlockSafeHaven={() => setMode("SAFE_HAVEN")}
+              onUnlockSafeHaven={handleSafeHavenUnlock}
               onDuressTrigger={handleDuressTrigger}
             />
           )}
           {activeDisguise === "MUNICIPAL_PREPAID" && (
             <MunicipalPrepaidCalculator
-              onUnlockSafeHaven={() => setMode("SAFE_HAVEN")}
+              onUnlockSafeHaven={handleSafeHavenUnlock}
               onDuressTrigger={handleDuressTrigger}
               onOpenBriefing={() => setShowBriefing(true)}
             />
@@ -401,6 +408,7 @@ export const App: React.FC = () => {
           key={vaultSessionKey}
           onPanicLock={trigger0msPanicCamouflage}
           onOpenGuardianTracker={() => setMode("GUARDIAN_TRACKER")}
+          entrySource={safeHavenEntrySource}
         />
       )}
       {mode === "GUARDIAN_TRACKER" && (

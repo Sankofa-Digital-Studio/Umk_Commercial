@@ -46,6 +46,30 @@ export interface UatProfile {
   socials: EmergencySocials;
 }
 
+export type SurvivorSetupStep = "profile" | "ice" | "permissions";
+
+const DEFAULT_PROFILE_VALUES = new Set(["", "survivor", "test user", "unknown", "n/a"]);
+const DEFAULT_CONTACT_VALUES = new Set(["", "guardian", "ice contact", "test contact", "unknown"]);
+
+export function isMeaningfulSurvivorProfile(profile: UatProfile): boolean {
+  const name = profile.personal.fullName.trim().toLowerCase();
+  const safeWord = (profile.personal.safeWord || "").trim().toLowerCase();
+  return name.length >= 2 && !DEFAULT_PROFILE_VALUES.has(name) && safeWord.length >= 3 && !DEFAULT_PROFILE_VALUES.has(safeWord);
+}
+
+export function isMeaningfulIceContact(contact: IceContact): boolean {
+  const name = contact.name.trim().toLowerCase();
+  const digits = contact.phone.replace(/\D/g, "");
+  return name.length >= 2 && !DEFAULT_CONTACT_VALUES.has(name) && digits.length >= 9 && !/^(0|1|2|9)\1+$/.test(digits);
+}
+
+export function getSurvivorSetupStep(profile: UatProfile): SurvivorSetupStep | null {
+  if (!isMeaningfulSurvivorProfile(profile)) return "profile";
+  if (!profile.contacts.some(isMeaningfulIceContact)) return "ice";
+  if (!profile.onboardingCompleted) return "permissions";
+  return null;
+}
+
 const LEGACY_PROFILE_KEYS = [
   "pcalc_uat_profile",
   "umkhuseli_uat_ice_profile",
