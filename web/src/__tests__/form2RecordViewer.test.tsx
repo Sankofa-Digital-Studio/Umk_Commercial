@@ -143,6 +143,11 @@ describe("SouthAfricanLegalRights Component", () => {
   it("renders the 3 statutory Domestic Violence Act 116 of 1998 legal safeguards", () => {
     render(<SouthAfricanLegalRights />);
 
+    const legalRightsCard = screen.getByRole("button", { name: /Your Rights Under South African Law/i });
+    expect(legalRightsCard).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(legalRightsCard);
+    expect(legalRightsCard).toHaveAttribute("aria-expanded", "true");
+
     expect(screen.getByText("Your Rights Under South African Law")).toBeDefined();
     expect(screen.getByText(/Domestic Violence Act 116 of 1998/i)).toBeDefined();
     expect(screen.getByText("You don't need a lawyer to get a Protection Order")).toBeDefined();
